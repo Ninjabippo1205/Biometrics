@@ -112,54 +112,32 @@ def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None,
 	return cv2.GaussianBlur(sobel_magnitude, blur, 0)
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
-	img = frame.copy()
-	cv2.circle(img, pupil_center, pupil_radius, (0, 0, 0), -1)
-	#cv2.imshow("not_iris_mask", img)
-	mask = np.zeros_like(img)
-	cv2.circle(mask, iris_center, iris_radius, (255,255,255), -1)
-	img = cv2.bitwise_and(img, mask)
-	#img = cv2.equalizeHist(img)
-	#cv2.imshow("not_iris_mask", img)
-	return img
+	mask1 = np.zeros_like(frame)
+	mask2 = np.zeros_like(frame)
 
-def create_eye_mask(image_path):
-    # Load the eye image
-    eye_image = cv2.imread(image_path)
-    
-    # Convert the image to grayscale
-    gray = cv2.cvtColor(eye_image, cv2.COLOR_BGR2GRAY)
+	cv2.circle(mask1, pupil_center, pupil_radius, (255, 255, 255), -1)
+	cv2.circle(mask2, iris_center, iris_radius, (255, 255, 255), -1)
 
-    # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+	return mask2 - mask1
 
-    # Perform adaptive thresholding to create a binary mask
-    _, binary_mask = cv2.threshold(blurred, 75, 460, cv2.THRESH_BINARY)
+def eyelashes_mask(eye_image):
 
-    # Perform morphological operations to close small gaps in the binary mask
-    kernel = np.ones((5, 5), np.uint8)
-    closed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
-
-    return closed_mask
-
-def remove_eyelashes_eyelid(eye_image, eye_mask):
-    # Convert the image to grayscale
-    gray = cv2.cvtColor(eye_image, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian blur to the grayscale image
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Use the inverse of the eye mask to segment the eyelashes and eyelid
-    eyelashes_eyelid = cv2.bitwise_and(blurred, blurred, mask=cv2.bitwise_not(eye_mask))
-
-    # Add the segmented eyelashes and eyelid to the original eye image
-    result = cv2.addWeighted(eye_image, 1, cv2.cvtColor(eyelashes_eyelid, cv2.COLOR_GRAY2BGR), 1, 0)
-
-    return result
-
+	# Apply Gaussian blur to reduce noise
+	blurred = cv2.GaussianBlur(eye_image, (5, 5), 0)
+	
+	# Perform adaptive thresholding to create a binary mask
+	_, binary_mask = cv2.threshold(blurred, 75, 400, cv2.THRESH_BINARY)
+	
+	# Perform morphological operations to close small gaps in the binary mask
+	kernel = np.ones((5, 5), np.uint8)
+	closed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+	
+	# Use the inverse of the eye mask to segment the eyelashes and eyelid
+	return closed_mask
 
 def main():
 	dataset = {}
-	enrolled_users_intervals = [[1,5],[45,50]]
+	enrolled_users_intervals = [[1,5], [45,50]]
 	enrolled_image_intervals = [[1,3], [5,8]]
 	files_in_directory = os.listdir("CASIA-Iris-Lamp")
 	createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory)
@@ -167,15 +145,6 @@ def main():
 	for i in dataset:
 		for j in dataset[i]:
 			for k in dataset[i][j]:
-
-				eye_image = cv2.imread(k)
-				eye_mask = create_eye_mask(k)
-				result_image = remove_eyelashes_eyelid(eye_image, eye_mask)
-				cv2.imshow("Original Eye Image", eye_image)
-				cv2.imshow("Eye Image with Removed Eyelashes and Eyelid", result_image)
-				cv2.waitKey(50)
-
-
 				frame = cv2.imread(k)
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 				#cv2.imshow("frame", frame)
@@ -195,9 +164,18 @@ def main():
 				#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
 				#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
 				#drawCircle(frame, 4, iris_center, iris_radius, 0)
+				
+				eyelid_mask = eyelashes_mask(frame.copy())
 				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-
-				cv2.imshow("iris_mask", iris_mask)
+				print(pupil_center, iris_center, pupil_radius, iris_radius)
+				final_mask = cv2.bitwise_and(iris_mask, eyelid_mask)
+				
+				iris_pic = cv2.bitwise_and(frame.copy(), iris_mask)
+				final_pic = cv2.bitwise_and(frame.copy(), final_mask)
+				test_pic = cv2.bitwise_and(frame.copy(), eyelid_mask)
+				cv2.imshow("final_mask", final_pic)
+				cv2.imshow("iris_mask", iris_pic)
+				cv2.imshow("test_mask", test_pic)
 
 				key = cv2.waitKey(3000)
 				if key == 27 or key == 1048603:
