@@ -1,5 +1,4 @@
 import cv2
-import math
 import numpy as np
 import os
 
@@ -10,19 +9,19 @@ def createDatasetfromPath(files_in_directory):
 					dataset[folder] = {}
 					dataset[folder]["L"] = []
 					dataset[folder]["R"] = []
-					files_L = os.listdir("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "L")
-					files_R = os.listdir("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "R")
+					files_L = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "L")
+					files_R = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "R")
 					counter = 1
 					for L in files_L:
 						for image_interval in enrolled_image_intervals:
 							if(counter >= image_interval[0] and counter <= image_interval[1]):
-								dataset[folder]["L"].append("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "L" + "/" + L)
+								dataset[folder]["L"].append("CASIA-Iris-Lamp/" + folder + "/" + "L" + "/" + L)
 						counter += 1
 					counter = 1
 					for R in files_R:
 						for image_interval in enrolled_image_intervals:
 							if(counter >= image_interval[0] and counter <= image_interval[1]):
-								dataset[folder]["R"].append("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "R" + "/" + R)	
+								dataset[folder]["R"].append("CASIA-Iris-Lamp/" + folder + "/" + "R" + "/" + R)	
 						counter += 1
 
 def viewImages(dataset, timeout):
@@ -138,7 +137,7 @@ dataset = {}
 enrolled_users_intervals = [[1,5],[45,50]]
 enrolled_image_intervals = [[1,3], [5,8]]
 
-files_in_directory = os.listdir("Biometric Systems/CASIA-Iris-Lamp")
+files_in_directory = os.listdir("CASIA-Iris-Lamp")
 createDatasetfromPath(files_in_directory)
 #viewImages(dataset, 100)
 
