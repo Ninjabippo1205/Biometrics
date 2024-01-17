@@ -122,6 +122,7 @@ def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None,
 	return res
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
+	print(pupil_center, iris_center, pupil_radius, iris_radius)
 	img = frame.copy()
 	cv2.circle(img, pupil_center, pupil_radius, (0, 0, 0), -1)
 	#cv2.imshow("not_iris_mask", img)
@@ -132,6 +133,32 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	#cv2.imshow("not_iris_mask", img)
 	return img
 
+def remove_eyelashes(image, pupil_center, iris_center, pupil_radius, iris_radius):
+	img = image.copy()
+	#mask1 = np.zeros_like(img)
+	#cv2.circle(mask1, iris_center, iris_radius, (255,255,255), -1)
+	#mask2 = np.zeros_like(img)
+	#cv2.circle(mask2, pupil_center, pupil_radius, (255,255,255), -1)
+	#mask = mask1 - mask2
+	#cv2.imshow("mask", mask)
+
+
+	#_, thresholded = cv2.threshold(img, 80, 255, cv2.THRESH_BINARY_INV)
+	#cv2.imshow("thresholded", thresholded)
+	edges = cv2.Canny(img, 0, 190)
+	cv2.imshow("edges", edges)
+	edges = cv2.GaussianBlur(edges, (27, 27), 0)
+
+	contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+	contours = [cnt for cnt in contours if len(cnt) > 5]
+	contours = [cv2.approxPolyDP(cnt, 0.02*cv2.arcLength(cnt, True), True) for cnt in contours]
+	filtered = np.zeros_like(img)
+	cv2.drawContours(filtered, contours, -1, (255), 1)
+	cv2.imshow('Filtered Edges', filtered)
+	#mask = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
+	#res = cv2.inpaint(img,mask,3,cv2.INPAINT_TELEA)
+	
+	return img
 
 def main():
 	dataset = {}
@@ -163,7 +190,9 @@ def main():
 				#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
 				#drawCircle(frame, 4, iris_center, iris_radius, 0)
 				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-				cv2.imshow("iris_mask", iris_mask)
+				#cv2.imshow("iris_mask", iris_mask)
+				res = remove_eyelashes(iris_mask, pupil_center, iris_center, pupil_radius, iris_radius)
+				cv2.imshow("res", res)
 
 				key = cv2.waitKey(3000)
 				if key == 27 or key == 1048603:
