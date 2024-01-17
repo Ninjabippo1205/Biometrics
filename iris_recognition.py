@@ -103,23 +103,13 @@ def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None,
 	image = img.copy()
 	if pupil_mask is not None:
 		image = cv2.add(image, pupil_mask)
-#	image = cv2.equalizeHist(image)
-		
-	#cv2.imshow("image", image)
 
 	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
 	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
 	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
 
-	sobel_magnitude = np.sqrt(sobelx**2 + sobely**2)
-
-	sobel_magnitude_normalized = cv2.normalize(sobel_magnitude, None, 0, 255, cv2.NORM_MINMAX)
-
-	sobel_magnitude_normalized_uint8 = np.uint8(sobel_magnitude_normalized)
-
-	res = cv2.GaussianBlur(sobel_magnitude_normalized_uint8, blur, 0)
-
-	return res
+	sobel_magnitude = np.uint8(cv2.normalize(np.sqrt(sobelx**2 + sobely**2), None, 0, 255, cv2.NORM_MINMAX))
+	return cv2.GaussianBlur(sobel_magnitude, blur, 0)
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	img = frame.copy()
@@ -132,6 +122,40 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	#cv2.imshow("not_iris_mask", img)
 	return img
 
+def create_eye_mask(image_path):
+    # Load the eye image
+    eye_image = cv2.imread(image_path)
+    
+    # Convert the image to grayscale
+    gray = cv2.cvtColor(eye_image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Perform adaptive thresholding to create a binary mask
+    _, binary_mask = cv2.threshold(blurred, 75, 460, cv2.THRESH_BINARY)
+
+    # Perform morphological operations to close small gaps in the binary mask
+    kernel = np.ones((5, 5), np.uint8)
+    closed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+    return closed_mask
+
+def remove_eyelashes_eyelid(eye_image, eye_mask):
+    # Convert the image to grayscale
+    gray = cv2.cvtColor(eye_image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian blur to the grayscale image
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Use the inverse of the eye mask to segment the eyelashes and eyelid
+    eyelashes_eyelid = cv2.bitwise_and(blurred, blurred, mask=cv2.bitwise_not(eye_mask))
+
+    # Add the segmented eyelashes and eyelid to the original eye image
+    result = cv2.addWeighted(eye_image, 1, cv2.cvtColor(eyelashes_eyelid, cv2.COLOR_GRAY2BGR), 1, 0)
+
+    return result
+
 
 def main():
 	dataset = {}
@@ -143,6 +167,15 @@ def main():
 	for i in dataset:
 		for j in dataset[i]:
 			for k in dataset[i][j]:
+
+				eye_image = cv2.imread(k)
+				eye_mask = create_eye_mask(k)
+				result_image = remove_eyelashes_eyelid(eye_image, eye_mask)
+				cv2.imshow("Original Eye Image", eye_image)
+				cv2.imshow("Eye Image with Removed Eyelashes and Eyelid", result_image)
+				cv2.waitKey(50)
+
+
 				frame = cv2.imread(k)
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 				#cv2.imshow("frame", frame)
@@ -163,6 +196,7 @@ def main():
 				#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
 				#drawCircle(frame, 4, iris_center, iris_radius, 0)
 				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+
 				cv2.imshow("iris_mask", iris_mask)
 
 				key = cv2.waitKey(3000)
