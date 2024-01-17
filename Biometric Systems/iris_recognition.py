@@ -3,189 +3,175 @@ import math
 import numpy as np
 import os
 
-# GLOBAL VARIABLES
-#####################################
-# Holds the pupil's center
-centroid = (0,0)
-# Holds the iris' radius
-radius = 0
-# Holds the current element of the image used by the getNewEye function
-currentEye = 0
-# Holds the list of eyes (filenames)
-eyesList = []
-#####################################
+def createDatasetfromPath(files_in_directory):
+		for folder in files_in_directory:
+			for interval in enrolled_users_intervals:
+				if(int(folder) >= interval[0] and int(folder) <= interval[1]):
+					dataset[folder] = {}
+					dataset[folder]["L"] = []
+					dataset[folder]["R"] = []
+					files_L = os.listdir("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "L")
+					files_R = os.listdir("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "R")
+					counter = 1
+					for L in files_L:
+						for image_interval in enrolled_image_intervals:
+							if(counter >= image_interval[0] and counter <= image_interval[1]):
+								dataset[folder]["L"].append("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "L" + "/" + L)
+						counter += 1
+					counter = 1
+					for R in files_R:
+						for image_interval in enrolled_image_intervals:
+							if(counter >= image_interval[0] and counter <= image_interval[1]):
+								dataset[folder]["R"].append("Biometric Systems/CASIA-Iris-Lamp/" + folder + "/" + "R" + "/" + R)	
+						counter += 1
 
-def getNewEye(list):
-	global currentEye
-	if (currentEye >= len(list)):
-		currentEye = 0
-	newEye = list[currentEye]
-	currentEye += 1
-	return (newEye)
+def viewImages(dataset, timeout):
+	for i in dataset:
+		for j in dataset[i]:
+			for k in dataset[i][j]:
+				frame = cv2.imread(k)
+				cv2.imshow("input", frame)
+				key = cv2.waitKey(timeout)
+				if key == 27 or key == 1048603:
+					break
 
-def getIris(frame):
-	iris = []
-	copyImg = frame.copy()
-	resImg = frame.copy()
-	grayImg = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-	mask = np.zeros_like(frame[:,:,0])
-	#mask = np.dstack([mask] * 3)
-	grayImg = cv2.Canny(grayImg, 5, 70, 3)
-	grayImg = cv2.GaussianBlur(grayImg, (7, 7), 0)
+def drawCircle(img, id, center, radius_min, radius_max):
+	copy = img.copy()
+	copy = cv2.cvtColor(copy, cv2.COLOR_GRAY2RGB)
+	cv2.circle(copy, center, radius_min, (0, 165, 255), 2)
+	cv2.circle(copy, center, radius_max, (203, 192, 255), 2)
+	cv2.imshow(str("Image with min and max Circles"+str(id)), copy)
 
-	circles = getCircles(grayImg)
-	iris.append(resImg)
-	for circle in circles:
-		rad = int(circle[0][2])
-		global radius
-		radius = rad
-		cv2.circle(mask, (int(centroid[0]), int(centroid[1])), int(rad), (255, 255, 255), thickness=cv2.FILLED) 
-		#mask = cv2.bitwise_not(mask)
-		resImg = cv2.bitwise_and(frame, copyImg, mask=mask)
-		x = int(centroid[0] - rad)
-		y = int(centroid[1] - rad)
-		w = int(rad * 2)
-		h = w
-		x = max(0, x)
-		y = max(0, y)
-		w = min(resImg.shape[1] - x, w)
-		h = min(resImg.shape[0] - y, h)
-		resImg = resImg[y:y+h, x:x+w]
-		cropImg = np.zeros((h, w, 3), dtype=np.uint8)
-		cropImg = resImg.copy()		
-		return(cropImg)
+def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
+	img = image.copy()
 
-	return (resImg)
+	circles = None
+	while circles is None:
+		circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, dp=2, minDist=minDist, param1=param1, param2=param2, minRadius=minRadius, maxRadius=maxRadius)
+		param2 -= 1
+	return circles
 
-def getCircles(image):
-	i = 200
-	j=50
-	while i > j:
-		circles = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, dp=2, minDist=100.0,
-                           param1=30, param2=i, minRadius=100, maxRadius=140)		
-		#circles = np.asarray(storage)
-		if(circles is not None):
-			if (len(circles) == 1):
-				return circles
-		i -=1
-	return ([])
+def getPupil(original, image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+	img = image.copy()
+	origin = original.copy()
+	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
+	pupil = None
+	for i in circles[0, :]:
+		centro = (i[0], i[1])
+		raggio = i[2]
+		cv2.circle(img, centro, raggio, (0, 255, 0), 2)
+		cv2.circle(img, centro, 2, (0, 0, 255), 3)
 
-def getPupil(frame):
-	height, width = frame.shape[:2] 
-	pupilImg = np.zeros((height, width), dtype=np.uint8) 
-	lower_bound = np.array([30, 30, 30], dtype=np.uint8) 
-	upper_bound = np.array([80, 80, 80], dtype=np.uint8) 
-	pupilImg = cv2.inRange(frame, lower_bound, upper_bound) 
-	contours, _ = cv2.findContours(pupilImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) 
-	del pupilImg 
-	pupilImg = frame.copy() 
-	for contour in contours: 
-		moments = cv2.moments(contour) 
-		area = moments['m00'] 
-		if (area > 50): 
-			x = moments['m10'] / moments['m00'] if moments['m00'] != 0 else 0 
-			y = moments['m01'] / moments['m00'] if moments['m00'] != 0 else 0 
-			pupil = contour 
-			global centroid 
-			centroid = (int(x),int(y)) 
-			cv2.drawContours(pupilImg, pupil, -1, (0, 0, 255), thickness=2, lineType=cv2.LINE_AA) 
-			cv2.fillPoly(pupilImg, pts =[pupil], color=(0,0,0))
-			break 
-	return (pupilImg)
+		cv2.circle(origin, centro, raggio, (0, 255, 0), 2)
+		cv2.circle(origin, centro, 2, (0, 0, 255), 3)
 
-def get_polar_to_cart_img(image, rad): 
-	img_size = image.shape
-	c = (float(img_size[1]/2.0), float(img_size[0]/2.0))
-	img_res=cv2.logPolar(image, c, img_size[1]/math.log(rad), cv2.INTER_LINEAR | cv2.WARP_FILL_OUTLIERS)
-	return img_res 
+		pupil = np.zeros_like(image)
+		cv2.circle(pupil, centro, raggio, (255,255,255), -1)
 
-#######################################
-def gaborconvolve_f(img, minw_length, mult, sigma_f):
-    # Convert the image to grayscale if it is a color image
-	if len(img.shape) > 2:
-		img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-	
-	img_size = img.shape
-	rows= img_size[0]
-	ndata = img_size[1]
-	logGabor_f = np.zeros(ndata)
-	filterb = np.zeros([rows, ndata], dtype=complex)
-	
-	radius = np.arange(ndata/2 + 1) / (ndata/2) / 2
-	radius[0] = 1
+		return origin, img, pupil, centro, raggio
+	return origin, img, pupil, (0,0), 0
 
-    # filter wavelength
-	wavelength = minw_length
+def getIris(original, image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+	img = image.copy()
+	origin = original.copy()
+	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
+	for i in circles[0, :]:
+		cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 2)
+		cv2.circle(img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-    # radial filter component 
-	fo = 1 / wavelength
-	logGabor_f[0: int(ndata/2) + 1] = np.exp((-(np.log(radius/fo))**2) / (2 * np.log(sigma_f)**2))
-	logGabor_f[0] = 0
-    # convolution for each row
-	for r in range(rows):
-		signal = img[r, 0:ndata]
-		imagefft = np.fft.fft(signal)
-		filterb[r, :] = np.fft.ifft(imagefft * np.conj(logGabor_f)).real
-	
-	return filterb
+		cv2.circle(origin, (i[0], i[1]), i[2], (0, 255, 0), 2)
+		cv2.circle(origin, (i[0], i[1]), 2, (0, 0, 255), 3)
+
+		return origin, img, (i[0], i[1]), i[2]
+	return origin, img, (0,0), 0
+
+def preProcessing_iris_image(img):
+	#image = cv2.equalizeHist(image)	non l'ho usato ma potrebbe servire magari a rendere i contrasti più netti nell'immagine originale
+
+	img = cv2.GaussianBlur(img, (27, 27), 0)
+	#cv2.imshow("GaussianBlur", img)
+	img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 1) #15, 0.5
+	#cv2.imshow("adaptiveThreshold", img)
+	img = cv2.GaussianBlur(img, (27, 27), 0)
+	#cv2.imshow("GaussianBlur2", img)
+	edges = cv2.Canny(img, 70, 120)#50,150
+	#cv2.imshow("Canny", edges)
+	img = cv2.GaussianBlur(edges, (27, 27), 0)
+	#cv2.imshow("GaussianBlur3", img)
+	return img
+
+def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None, pupil_center=None, pupil_radius=None, sobel=3):
+	image = img.copy()
+	if pupil_mask is not None:
+		image = cv2.add(image, pupil_mask)
+#	image = cv2.equalizeHist(image)
+		
+	#cv2.imshow("image", image)
+
+	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
+	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
+	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
+
+	sobel_magnitude = np.sqrt(sobelx**2 + sobely**2)
+
+	sobel_magnitude_normalized = cv2.normalize(sobel_magnitude, None, 0, 255, cv2.NORM_MINMAX)
+
+	sobel_magnitude_normalized_uint8 = np.uint8(sobel_magnitude_normalized)
+
+	res = cv2.GaussianBlur(sobel_magnitude_normalized_uint8, blur, 0)
+
+	return res
+
+def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
+	img = frame.copy()
+	cv2.circle(img, pupil_center, pupil_radius, (0, 0, 0), -1)
+	#cv2.imshow("not_iris_mask", img)
+	mask = np.zeros_like(img)
+	cv2.circle(mask, iris_center, iris_radius, (255,255,255), -1)
+	img = cv2.bitwise_and(img, mask)
+	#img = cv2.equalizeHist(img)
+	#cv2.imshow("not_iris_mask", img)
+	return img
 
 
+dataset = {}
+enrolled_users_intervals = [[1,5],[45,50]]
+enrolled_image_intervals = [[1,3], [5,8]]
+
+files_in_directory = os.listdir("Biometric Systems/CASIA-Iris-Lamp")
+createDatasetfromPath(files_in_directory)
+#viewImages(dataset, 100)
+
+for i in dataset:
+	for j in dataset[i]:
+		for k in dataset[i][j]:
+			frame = cv2.imread(k)
+			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+			#cv2.imshow("frame", frame)
+			preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))	#70
+			origin_pupil, pupil, pupil_mask, pupil_center, pupil_radius = getPupil(frame, preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
+			#cv2.imshow("pupilla", pupil)
+			#cv2.imshow("origin_pupil", origin_pupil)
+		
+			preProcessed_image_for_iris = preProcessing_iris_image(frame)
+			#cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
+			min_radius = int(pupil_radius + (0.3*pupil_radius))
+			max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
+			origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+			#cv2.imshow("iris", iris)
+			#cv2.imshow("origin_iris", origin_iris)
+			#drawCircle(iris, 1, pupil_center, min_radius, max_radius)
+			#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
+			#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
+			#drawCircle(frame, 4, iris_center, iris_radius, 0)
+			iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+			cv2.imshow("iris_mask", iris_mask)
+
+			key = cv2.waitKey(3000)
+			if key == 27 or key == 1048603:
+				break
 
 
-def encode_iris(arr_polar, minw_length, mult, sigma_f):
-    # convolve with gabor filters
-    filterb = gaborconvolve_f(arr_polar, minw_length, mult, sigma_f)
-    l = arr_polar.shape[1]
-    template = np.zeros([arr_polar.shape[0], 2 * l])
 
-    # making the iris template
-    filt = filterb[:, :]
 
-    # quantization and check to se if the phase data is useful
-    H1 = np.real(filt) > 0
-    H2 = np.imag(filt) > 0
-
-    H3 = np.abs(filt) < 0.0001
-    for i in range(l):
-        ja = 2 * i
-
-        # biometric template
-        template[:, ja] = H1[:, i]
-        template[:, ja + 1] = H2[:, i]
-
-    return template
-#######################################
- 
-# Window creation for showing input, output 
-cv2.namedWindow("input", cv2.WINDOW_AUTOSIZE) 
-cv2.namedWindow("output", cv2.WINDOW_AUTOSIZE) 
-cv2.namedWindow("normalized", cv2.WINDOW_AUTOSIZE)
-
-eyes_list = os.listdir('images') 
-key = 0
-while len(eyes_list) > 0: 
-	eye = getNewEye(eyes_list) 
-	eyes_list.remove(eye)
-	frame = cv2.imread("images/" + eye) 
-	iris = frame.copy() 
-	output = getPupil(frame) 
-	iris = getIris(output) 
-	cv2.imshow("input", frame) 
-	cv2.imshow("output", iris) 
-	norm_img = iris.copy()
-	norm_img = get_polar_to_cart_img(iris, radius) 
-	cv2.imshow("normalized", norm_img) 
-	##############################################
-	#minw_length = 18
-	#mult = 1
-	#sigma_f = 0.5
-	#template = encode_iris(norm_img, minw_length, mult, sigma_f)
-	#print(template.shape)
-	#path = str(eye[:-4]+".txt")
-	#np.savetxt(path, template)
-	##############################################
-	key = cv2.waitKey(3000) 
-	if key == 27 or key == 1048603: 
-		break 
- 
 cv2.destroyAllWindows()
