@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 
-def createDatasetfromPath(files_in_directory):
+def createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory):
 		for folder in files_in_directory:
 			for interval in enrolled_users_intervals:
 				if(int(folder) >= interval[0] and int(folder) <= interval[1]):
@@ -133,44 +133,43 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	return img
 
 
-dataset = {}
-enrolled_users_intervals = [[1,5],[45,50]]
-enrolled_image_intervals = [[1,3], [5,8]]
+def main():
+	dataset = {}
+	enrolled_users_intervals = [[1,5],[45,50]]
+	enrolled_image_intervals = [[1,3], [5,8]]
+	files_in_directory = os.listdir("CASIA-Iris-Lamp")
+	createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory)
 
-files_in_directory = os.listdir("CASIA-Iris-Lamp")
-createDatasetfromPath(files_in_directory)
-#viewImages(dataset, 100)
+	for i in dataset:
+		for j in dataset[i]:
+			for k in dataset[i][j]:
+				frame = cv2.imread(k)
+				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+				#cv2.imshow("frame", frame)
+				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))	#70
+				origin_pupil, pupil, pupil_mask, pupil_center, pupil_radius = getPupil(frame, preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
+				#cv2.imshow("pupilla", pupil)
+				#cv2.imshow("origin_pupil", origin_pupil)
+			
+				preProcessed_image_for_iris = preProcessing_iris_image(frame)
+				#cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
+				min_radius = int(pupil_radius + (0.3*pupil_radius))
+				max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
+				origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+				#cv2.imshow("iris", iris)
+				#cv2.imshow("origin_iris", origin_iris)
+				#drawCircle(iris, 1, pupil_center, min_radius, max_radius)
+				#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
+				#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
+				#drawCircle(frame, 4, iris_center, iris_radius, 0)
+				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+				cv2.imshow("iris_mask", iris_mask)
 
-for i in dataset:
-	for j in dataset[i]:
-		for k in dataset[i][j]:
-			frame = cv2.imread(k)
-			frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-			#cv2.imshow("frame", frame)
-			preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))	#70
-			origin_pupil, pupil, pupil_mask, pupil_center, pupil_radius = getPupil(frame, preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
-			#cv2.imshow("pupilla", pupil)
-			#cv2.imshow("origin_pupil", origin_pupil)
-		
-			preProcessed_image_for_iris = preProcessing_iris_image(frame)
-			#cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
-			min_radius = int(pupil_radius + (0.3*pupil_radius))
-			max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
-			origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
-			#cv2.imshow("iris", iris)
-			#cv2.imshow("origin_iris", origin_iris)
-			#drawCircle(iris, 1, pupil_center, min_radius, max_radius)
-			#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
-			#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
-			#drawCircle(frame, 4, iris_center, iris_radius, 0)
-			iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-			cv2.imshow("iris_mask", iris_mask)
+				key = cv2.waitKey(3000)
+				if key == 27 or key == 1048603:
+					break
 
-			key = cv2.waitKey(3000)
-			if key == 27 or key == 1048603:
-				break
+	cv2.destroyAllWindows()
 
-
-
-
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+	main()
