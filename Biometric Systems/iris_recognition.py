@@ -82,8 +82,8 @@ def getIris(original, image, param1=50, param2=300, minDist=20, minRadius=0, max
 		cv2.circle(origin, (i[0], i[1]), i[2], (0, 255, 0), 2)
 		cv2.circle(origin, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-		return origin, img
-	return origin, img
+		return origin, img, (i[0], i[1]), i[2]
+	return origin, img, (0,0), 0
 
 def preProcessing_iris_image(img):
 	#image = cv2.equalizeHist(image)	non l'ho usato ma potrebbe servire magari a rendere i contrasti più netti nell'immagine originale
@@ -122,6 +122,17 @@ def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None,
 
 	return res
 
+def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
+	img = frame.copy()
+	cv2.circle(img, pupil_center, pupil_radius, (0, 0, 0), -1)
+	#cv2.imshow("not_iris_mask", img)
+	mask = np.zeros_like(img)
+	cv2.circle(mask, iris_center, iris_radius, (255,255,255), -1)
+	img = cv2.bitwise_and(img, mask)
+	#img = cv2.equalizeHist(img)
+	#cv2.imshow("not_iris_mask", img)
+	return img
+
 
 dataset = {}
 enrolled_users_intervals = [[1,5],[45,50]]
@@ -143,14 +154,18 @@ for i in dataset:
 			#cv2.imshow("origin_pupil", origin_pupil)
 		
 			preProcessed_image_for_iris = preProcessing_iris_image(frame)
-			cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
+			#cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
 			min_radius = int(pupil_radius + (0.3*pupil_radius))
 			max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
-			origin_iris, iris = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+			origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
 			#cv2.imshow("iris", iris)
 			#cv2.imshow("origin_iris", origin_iris)
-			drawCircle(iris, 1, pupil_center, min_radius, max_radius)
-			drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
+			#drawCircle(iris, 1, pupil_center, min_radius, max_radius)
+			#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
+			#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
+			#drawCircle(frame, 4, iris_center, iris_radius, 0)
+			iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+			cv2.imshow("iris_mask", iris_mask)
 
 			key = cv2.waitKey(3000)
 			if key == 27 or key == 1048603:
