@@ -51,9 +51,8 @@ def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 		param2 -= 1
 	return circles
 
-def getPupil(original, image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+def getPupil(image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
 	img = image.copy()
-	origin = original.copy()
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	pupil = None
 	for i in circles[0, :]:
@@ -62,28 +61,21 @@ def getPupil(original, image, param1=50, param2=300, minDist=20, minRadius=0, ma
 		cv2.circle(img, centro, raggio, (0, 255, 0), 2)
 		cv2.circle(img, centro, 2, (0, 0, 255), 3)
 
-		cv2.circle(origin, centro, raggio, (0, 255, 0), 2)
-		cv2.circle(origin, centro, 2, (0, 0, 255), 3)
-
 		pupil = np.zeros_like(image)
 		cv2.circle(pupil, centro, raggio, (255,255,255), -1)
 
-		return origin, img, pupil, centro, raggio
-	return origin, img, pupil, (0,0), 0
+		return centro, raggio
+	return (0,0), 0
 
-def getIris(original, image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+def getIris(image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
 	img = image.copy()
-	origin = original.copy()
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	for i in circles[0, :]:
 		cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 2)
 		cv2.circle(img, (i[0], i[1]), 2, (0, 0, 255), 3)
 
-		cv2.circle(origin, (i[0], i[1]), i[2], (0, 255, 0), 2)
-		cv2.circle(origin, (i[0], i[1]), 2, (0, 0, 255), 3)
-
-		return origin, img, (i[0], i[1]), i[2]
-	return origin, img, (0,0), 0
+		return (i[0], i[1]), i[2]
+	return (0,0), 0
 
 def preProcessing_iris_image(img):
 	#image = cv2.equalizeHist(image)	non l'ho usato ma potrebbe servire magari a rendere i contrasti più netti nell'immagine originale
@@ -131,10 +123,6 @@ def eyelashes_mask(eye_image):
 
 def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
     img = image.copy()
-    y, x = np.indices((img.shape[0], img.shape[1]))
-    angle_map = np.arctan2(y-center[1], x-center[0])
-    radius_map = np.hypot(y-center[1], x-center[0])
-    mask = (radius_map >= pupil_radius) & (radius_map <= iris_radius)
     # Crea una griglia di angoli e raggi
     angles = np.linspace(-np.pi, np.pi, int(2*np.pi*iris_radius))  # larghezza proporzionale alla circonferenza dell'iride
     radii = np.linspace(pupil_radius, iris_radius, int(iris_radius-pupil_radius))  # altezza proporzionale alla differenza dei raggi
@@ -160,13 +148,13 @@ def main():
 			for k in dataset[i][j]:
 				frame = cv2.imread(k)
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))	#70
-				origin_pupil, pupil, pupil_mask, pupil_center, pupil_radius = getPupil(frame, preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
+				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))
+				pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 			
 				preProcessed_image_for_iris = preProcessing_iris_image(frame)
 				min_radius = int(pupil_radius + (0.3*pupil_radius))
 				max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
-				origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+				iris_center, iris_radius = getIris(preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
 				
 				lashes_mask = eyelashes_mask(frame.copy())
 				partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
@@ -176,8 +164,8 @@ def main():
 				cv2.imshow("final_mask", final_iris)
 
 				key = cv2.waitKey(3000)
-				if key == 27 or key == 1048603:
-					break
+				if key == 27 or key == 1048603 or key == -1:
+					return
 
 	cv2.destroyAllWindows()
 
