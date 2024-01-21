@@ -51,7 +51,7 @@ def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 		param2 -= 1
 	return circles
 
-def getPupil(image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+def getPupil(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	pupil = None
@@ -67,7 +67,7 @@ def getPupil(image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0)
 		return centro, raggio
 	return (0,0), 0
 
-def getIris(image, param1=50, param2=300, minDist=20, minRadius=0, maxRadius=0):
+def getIris(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	for i in circles[0, :]:
@@ -87,10 +87,8 @@ def preProcessing_iris_image(img):
 	img = cv2.GaussianBlur(edges, (27, 27), 0)
 	return img
 
-def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None, pupil_center=None, pupil_radius=None, sobel=3):
+def preProcessing_pupil_image(img, blur, threshold_value, sobel):
 	image = img.copy()
-	if pupil_mask is not None:
-		image = cv2.add(image, pupil_mask)
 	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
 	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
 	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
@@ -136,6 +134,14 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
     unwrapped_img = cv2.normalize(unwrapped_img, None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
     return unwrapped_img
 
+def eyelid_mask(img):
+	# Apply Gaussian blur to reduce noise
+	mask = np.zeros_like(img)
+	mask[(img > 180) & (img < 255)] = 255
+	cv2.imshow("mask", mask)
+	return img
+	
+
 def main():
 	dataset = {}
 	enrolled_users_intervals = [[1,5], [45,50]]
@@ -146,9 +152,8 @@ def main():
 	for i in dataset:
 		for j in dataset[i]:
 			for k in dataset[i][j]:
-				frame = cv2.imread(k)
-				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))
+				frame = cv2.cvtColor(cv2.imread(k), cv2.COLOR_BGR2GRAY)
+				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
 				pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 			
 				preProcessed_image_for_iris = preProcessing_iris_image(frame)
@@ -160,12 +165,15 @@ def main():
 				partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
 
 				# Adding eyelashes mask to image and normalizing
-				final_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
-				cv2.imshow("final_mask", final_iris)
+				normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
+				cv2.imshow("normalized_iris", normalized_iris)
+
+				final_iris = eyelid_mask(normalized_iris)
+				cv2.imshow("final_iris", final_iris)
 
 				key = cv2.waitKey(3000)
-				if key == 27 or key == 1048603 or key == -1:
-					return
+				if key == 27 or key == 1048603:
+					break
 
 	cv2.destroyAllWindows()
 
