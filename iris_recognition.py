@@ -1,9 +1,9 @@
-import cv2
+import cv2, os
 import numpy as np
-import os
-import math
-import cv2
-import numpy as np
+from scipy.spatial import distance as scipydistance
+
+# Global varbiales
+verbose = False
 
 def createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory):
 		for folder in files_in_directory:
@@ -42,7 +42,8 @@ def drawCircle(img, id, center, radius_min, radius_max):
 	copy = cv2.cvtColor(copy, cv2.COLOR_GRAY2RGB)
 	cv2.circle(copy, center, radius_min, (0, 165, 255), 2)
 	cv2.circle(copy, center, radius_max, (203, 192, 255), 2)
-	cv2.imshow(str("Image with min and max Circles"+str(id)), copy)
+
+	if(verbose): cv2.imshow(str("Image with min and max Circles"+str(id)), copy)
 
 def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
@@ -80,8 +81,6 @@ def getIris(image, param1, param2, minDist, minRadius, maxRadius):
 	return (0,0), 0
 
 def preProcessing_iris_image(img):
-	#image = cv2.equalizeHist(image)	non l'ho usato ma potrebbe servire magari a rendere i contrasti più netti nell'immagine originale
-
 	img = cv2.GaussianBlur(img, (27, 27), 0)
 	img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 1) #15, 0.5
 	img = cv2.GaussianBlur(img, (27, 27), 0)
@@ -143,49 +142,70 @@ def eyelid_mask(img):
 	#cv2.imshow("new_bigger_img", new_bigger_img)
 	return img
 
-def main():
+def hammingdistance(template1, template2):
+	return scipydistance.hamming(template1.ravel(), template2.ravel())
+
+def getTemplate(path):
+	global verbose
+
+	frame = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
+	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
+			
+	preProcessed_image_for_iris = preProcessing_iris_image(frame)
+	min_radius = int(pupil_radius + (0.3*pupil_radius))
+	max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
+	iris_center, iris_radius = getIris(preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+				
+	lashes_mask = eyelashes_mask(frame.copy())
+	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+
+	# Adding eyelashes mask to image and normalizing
+	normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
+	final_iris = eyelid_mask(normalized_iris)
+
+	if(verbose): cv2.imshow("normalized_iris", final_iris)
+
+	width = final_iris.shape[0]
+	height = final_iris.shape[1]
+	
+	sigma = 6; theta = 0.8; lambda_ = 10; gamma = 2
+	gabor_kernel = cv2.getGaborKernel((width, height), sigma, theta, lambda_, gamma)
+	filtered_iris = cv2.filter2D(final_iris, cv2.CV_64F, gabor_kernel)
+	if(verbose): cv2.imshow("feature", filtered_iris)
+	return filtered_iris
+
+def main(*, verb=False):
+	global verbose
+	verbose = verb
+
 	dataset = {}
 	enrolled_users_intervals = [[1,5], [45,50]]
 	enrolled_image_intervals = [[1,3], [5,8]]
 	files_in_directory = os.listdir("CASIA-Iris-Lamp")
 	createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory)
 
-	for i in dataset:
-		for j in dataset[i]:
-			for k in dataset[i][j]:
-				frame = cv2.cvtColor(cv2.imread(k), cv2.COLOR_BGR2GRAY)
-				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
-				pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
-			
-				preProcessed_image_for_iris = preProcessing_iris_image(frame)
-				min_radius = int(pupil_radius + (0.3*pupil_radius))
-				max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
-				iris_center, iris_radius = getIris(preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
-				
-				lashes_mask = eyelashes_mask(frame.copy())
-				partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+	## image matching ##
+	minDistance = float("inf")
+	for x in dataset:
+		image1 = dataset[x]
 
-				# Adding eyelashes mask to image and normalizing
-				normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
-				cv2.imshow("normalized_iris", normalized_iris)
+		for y in dataset:
+			if(x == y): continue
 
-				final_iris = eyelid_mask(normalized_iris)
-				#cv2.imshow("final_iris", final_iris)
+			image2 = dataset[y]
+			d = hammingdistance(image1, image2)
+			if(d < minDistance):
+				minDistance=d
+				matched = x  
+		
+	print(matched)
 
-				width = normalized_iris.shape[0]
-				height = normalized_iris.shape[1]
-				sigma = 6  
-				theta = 0.8  
-				lambda_ = 10  
-				gamma = 2
+	if(verbose):
+		key = cv2.waitKey(30000)
+		if key == 27 or key == 1048603: return
+	
 
-				gabor_kernel = cv2.getGaborKernel((width, height), sigma, theta, lambda_, gamma)
-				filtered_iris = cv2.filter2D(normalized_iris, cv2.CV_64F, gabor_kernel)
-				cv2.imshow("feature", filtered_iris)
-
-				key = cv2.waitKey(30000)
-				if key == 27 or key == 1048603:
-					break
 
 	cv2.destroyAllWindows()
 
