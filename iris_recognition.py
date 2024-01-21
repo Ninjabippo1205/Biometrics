@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import math
 
 def createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory):
 		for folder in files_in_directory:
@@ -88,37 +89,30 @@ def preProcessing_iris_image(img):
 	#image = cv2.equalizeHist(image)	non l'ho usato ma potrebbe servire magari a rendere i contrasti più netti nell'immagine originale
 
 	img = cv2.GaussianBlur(img, (27, 27), 0)
-	#cv2.imshow("GaussianBlur", img)
 	img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 1) #15, 0.5
-	#cv2.imshow("adaptiveThreshold", img)
 	img = cv2.GaussianBlur(img, (27, 27), 0)
-	#cv2.imshow("GaussianBlur2", img)
 	edges = cv2.Canny(img, 70, 120)#50,150
-	#cv2.imshow("Canny", edges)
 	img = cv2.GaussianBlur(edges, (27, 27), 0)
-	#cv2.imshow("GaussianBlur3", img)
 	return img
 
 def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None, pupil_center=None, pupil_radius=None, sobel=3):
 	image = img.copy()
 	if pupil_mask is not None:
 		image = cv2.add(image, pupil_mask)
-
 	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
 	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
 	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
-
-	sobel_magnitude = np.uint8(cv2.normalize(np.sqrt(sobelx**2 + sobely**2), None, 0, 255, cv2.NORM_MINMAX))
-	return cv2.GaussianBlur(sobel_magnitude, blur, 0)
+	sobelmagnitude_norm = np.uint8(cv2.normalize(np.sqrt(sobelx**2 + sobely**2), None, 0, 255, cv2.NORM_MINMAX))
+	res = cv2.GaussianBlur(sobelmagnitude_norm, blur, 0)
+	return res
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
-	mask1 = np.zeros_like(frame)
-	mask2 = np.zeros_like(frame)
-
-	cv2.circle(mask1, pupil_center, pupil_radius, (255, 255, 255), -1)
-	cv2.circle(mask2, iris_center, iris_radius, (255, 255, 255), -1)
-
-	return mask2 - mask1
+	img = frame.copy()
+	cv2.circle(img, pupil_center, pupil_radius, (0, 0, 0), -1)
+	mask = np.zeros_like(img)
+	cv2.circle(mask, iris_center, iris_radius, (255,255,255), -1)
+	img = cv2.bitwise_and(img, mask)
+	return img
 
 def eyelashes_mask(eye_image):
 
@@ -135,6 +129,25 @@ def eyelashes_mask(eye_image):
 	# Use the inverse of the eye mask to segment the eyelashes and eyelid
 	return closed_mask
 
+def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
+    img = image.copy()
+    y, x = np.indices((img.shape[0], img.shape[1]))
+    angle_map = np.arctan2(y-center[1], x-center[0])
+    radius_map = np.hypot(y-center[1], x-center[0])
+    mask = (radius_map >= pupil_radius) & (radius_map <= iris_radius)
+    # Crea una griglia di angoli e raggi
+    angles = np.linspace(-np.pi, np.pi, int(2*np.pi*iris_radius))  # larghezza proporzionale alla circonferenza dell'iride
+    radii = np.linspace(pupil_radius, iris_radius, int(iris_radius-pupil_radius))  # altezza proporzionale alla differenza dei raggi
+    grid_angle, grid_radius = np.meshgrid(angles, radii)
+    # Mappa gli angoli e i raggi alla x e alla y
+    map_x = grid_radius * np.cos(grid_angle) + center[0]
+    map_y = grid_radius * np.sin(grid_angle) + center[1]
+    # Interpola i pixel dell'immagine originale sulla griglia
+    unwrapped_img = cv2.remap(img, map_x.astype('float32'), map_y.astype('float32'), cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    # Converte l'immagine srotolata in uint8
+    unwrapped_img = cv2.normalize(unwrapped_img, None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+    return unwrapped_img
+
 def main():
 	dataset = {}
 	enrolled_users_intervals = [[1,5], [45,50]]
@@ -147,35 +160,20 @@ def main():
 			for k in dataset[i][j]:
 				frame = cv2.imread(k)
 				frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-				#cv2.imshow("frame", frame)
 				preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15))	#70
 				origin_pupil, pupil, pupil_mask, pupil_center, pupil_radius = getPupil(frame, preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
-				#cv2.imshow("pupilla", pupil)
-				#cv2.imshow("origin_pupil", origin_pupil)
 			
 				preProcessed_image_for_iris = preProcessing_iris_image(frame)
-				#cv2.imshow("preProcessed_image_for_iris", preProcessed_image_for_iris)
 				min_radius = int(pupil_radius + (0.3*pupil_radius))
 				max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
 				origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
-				#cv2.imshow("iris", iris)
-				#cv2.imshow("origin_iris", origin_iris)
-				#drawCircle(iris, 1, pupil_center, min_radius, max_radius)
-				#drawCircle(origin_iris, 2, pupil_center, min_radius, max_radius)
-				#drawCircle(frame, 3, pupil_center, pupil_radius, 0)
-				#drawCircle(frame, 4, iris_center, iris_radius, 0)
 				
-				eyelid_mask = eyelashes_mask(frame.copy())
-				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-				print(pupil_center, iris_center, pupil_radius, iris_radius)
-				final_mask = cv2.bitwise_and(iris_mask, eyelid_mask)
-				
-				iris_pic = cv2.bitwise_and(frame.copy(), iris_mask)
-				final_pic = cv2.bitwise_and(frame.copy(), final_mask)
-				test_pic = cv2.bitwise_and(frame.copy(), eyelid_mask)
-				cv2.imshow("final_mask", final_pic)
-				cv2.imshow("iris_mask", iris_pic)
-				cv2.imshow("test_mask", test_pic)
+				lashes_mask = eyelashes_mask(frame.copy())
+				partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
+
+				# Adding eyelashes mask to image and normalizing
+				final_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
+				cv2.imshow("final_mask", final_iris)
 
 				key = cv2.waitKey(3000)
 				if key == 27 or key == 1048603:
@@ -185,3 +183,10 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
+
+
+
+
+
+
