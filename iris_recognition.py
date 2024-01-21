@@ -99,20 +99,11 @@ def preProcessing_pupil_image(img, blur, threshold_value = 110, pupil_mask=None,
 	image = img.copy()
 	if pupil_mask is not None:
 		image = cv2.add(image, pupil_mask)
-#	image = cv2.equalizeHist(image)
-
 	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
 	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
 	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
-
-	sobel_magnitude = np.sqrt(sobelx**2 + sobely**2)
-
-	sobel_magnitude_normalized = cv2.normalize(sobel_magnitude, None, 0, 255, cv2.NORM_MINMAX)
-
-	sobel_magnitude_normalized_uint8 = np.uint8(sobel_magnitude_normalized)
-
-	res = cv2.GaussianBlur(sobel_magnitude_normalized_uint8, blur, 0)
-
+	sobelmagnitude_norm = np.uint8(cv2.normalize(np.sqrt(sobelx**2 + sobely**2), None, 0, 255, cv2.NORM_MINMAX))
+	res = cv2.GaussianBlur(sobelmagnitude_norm, blur, 0)
 	return res
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
@@ -123,26 +114,20 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	img = cv2.bitwise_and(img, mask)
 	return img
 
-def remove_eyelashes(image, pupil_center, iris_center, pupil_radius, iris_radius):
-	img = image.copy()
-	#mask1 = np.zeros_like(img)
-	#cv2.circle(mask1, iris_center, iris_radius, (255,255,255), -1)
-	#mask2 = np.zeros_like(img)
-	#cv2.circle(mask2, pupil_center, pupil_radius, (255,255,255), -1)
-	#mask = mask1 - mask2
-	#cv2.imshow("mask", mask)
+def eyelashes_mask(eye_image):
 
-	#copy = img.copy()
-	#lower = np.array(0)  # Ad esempio per il grigio chiaro
-	#upper = np.array(60)  # Ad esempio per il grigio scuro
-	#mask = cv2.inRange(copy, lower, upper)
-	#result = cv2.bitwise_and(copy, copy, mask=mask)
-	#cv2.imshow("result", result)
-
-	#mask = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
-	#res = cv2.inpaint(img,mask,3,cv2.INPAINT_TELEA)
+	# Apply Gaussian blur to reduce noise
+	blurred = cv2.GaussianBlur(eye_image, (5, 5), 0)
 	
-	return img
+	# Perform adaptive thresholding to create a binary mask
+	_, binary_mask = cv2.threshold(blurred, 75, 400, cv2.THRESH_BINARY)
+	
+	# Perform morphological operations to close small gaps in the binary mask
+	kernel = np.ones((5, 5), np.uint8)
+	closed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+	
+	# Use the inverse of the eye mask to segment the eyelashes and eyelid
+	return closed_mask
 
 def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
     img = image.copy()
@@ -165,7 +150,7 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 
 def main():
 	dataset = {}
-	enrolled_users_intervals = [[1,5],[45,50]]
+	enrolled_users_intervals = [[1,5], [45,50]]
 	enrolled_image_intervals = [[1,3], [5,8]]
 	files_in_directory = os.listdir("CASIA-Iris-Lamp")
 	createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory)
@@ -182,17 +167,13 @@ def main():
 				min_radius = int(pupil_radius + (0.3*pupil_radius))
 				max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
 				origin_iris, iris, iris_center, iris_radius = getIris(frame, preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
-				iris_mask = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-				cv2.imshow("iris_mask", iris_mask)
-				#################
-				#inizio prova rimozione ciglia e palpebre
-				#res = remove_eyelashes(iris_mask, pupil_center, iris_center, pupil_radius, iris_radius)
-				#cv2.imshow("res", res)
-				#fine prova rimozione ciglia e palpebre
-				#################
+				
+				lashes_mask = eyelashes_mask(frame.copy())
+				partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
 
-				normalized_iris = normalizeWithPolarCoordinates(iris_mask, iris_center, pupil_radius, iris_radius)
-				cv2.imshow("Normalized Iris Image", normalized_iris)
+				# Adding eyelashes mask to image and normalizing
+				final_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
+				cv2.imshow("final_mask", final_iris)
 
 				key = cv2.waitKey(3000)
 				if key == 27 or key == 1048603:
