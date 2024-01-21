@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import os
 import math
+import cv2
+import numpy as np
 
 def createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory):
 		for folder in files_in_directory:
@@ -135,12 +137,11 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
     return unwrapped_img
 
 def eyelid_mask(img):
-	# Apply Gaussian blur to reduce noise
-	mask = np.zeros_like(img)
-	mask[(img > 180) & (img < 255)] = 255
-	cv2.imshow("mask", mask)
+	h, w = img.shape
+	new_bigger_img = np.zeros((h+300, w+300), dtype=np.uint8)
+	new_bigger_img[0:h, 0:w] = img
+	#cv2.imshow("new_bigger_img", new_bigger_img)
 	return img
-	
 
 def main():
 	dataset = {}
@@ -169,9 +170,20 @@ def main():
 				cv2.imshow("normalized_iris", normalized_iris)
 
 				final_iris = eyelid_mask(normalized_iris)
-				cv2.imshow("final_iris", final_iris)
+				#cv2.imshow("final_iris", final_iris)
 
-				key = cv2.waitKey(3000)
+				width = normalized_iris.shape[0]
+				height = normalized_iris.shape[1]
+				sigma = 6  
+				theta = 0.8  
+				lambda_ = 10  
+				gamma = 2
+
+				gabor_kernel = cv2.getGaborKernel((width, height), sigma, theta, lambda_, gamma)
+				filtered_iris = cv2.filter2D(normalized_iris, cv2.CV_64F, gabor_kernel)
+				cv2.imshow("feature", filtered_iris)
+
+				key = cv2.waitKey(30000)
 				if key == 27 or key == 1048603:
 					break
 
