@@ -1,0 +1,24 @@
+The function was given 159/R to test. It has matched 159/R with minimum distance 0.8744921875. The gallery contained 159/R? True
+The function was given 191/R to test. It has matched 191/R with minimum distance 0.8785481770833333. The gallery contained 191/R? True
+Test subject not found! The function was given 202/R. The minimum distance found is: 0.9111067708333334 with 202/R. Does the gallery contain the subject? True
+The function was given 083/R to test. It has matched 083/R with minimum distance 0.8573307291666666. The gallery contained 083/R? True
+Test subject not found! The function was given 202/L. The minimum distance found is: 0.91369140625 with 202/L. Does the gallery contain the subject? True
+The function was given 142/L to test. It has matched 142/L with minimum distance 0.8750032552083333. The gallery contained 142/L? True
+Test subject not found! The function was given 329/R. The minimum distance found is: 0.91212890625 with 329/R. Does the gallery contain the subject? True
+The function was given 110/R to test. It has matched 110/R with minimum distance 0.8944205729166667. The gallery contained 110/R? True
+The function was given 138/L to test. It has matched 138/L with minimum distance 0.8976790364583334. The gallery contained 138/L? True
+The function was given 130/R to test. It has matched 130/R with minimum distance 0.8435546875. The gallery contained 130/R? True
+Test subject not found! The function was given 388/R. The minimum distance found is: 0.9652376302083333 with 329/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 187/L. The minimum distance found is: 0.9735481770833333 with 142/L. Does the gallery contain the subject? False
+Test subject not found! The function was given 150/L. The minimum distance found is: 0.9736979166666667 with 329/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 002/R. The minimum distance found is: 0.9617578125 with 202/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 127/L. The minimum distance found is: 0.9662369791666666 with 202/L. Does the gallery contain the subject? False
+Test subject not found! The function was given 178/R. The minimum distance found is: 0.9637630208333333 with 202/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 120/L. The minimum distance found is: 0.9715299479166667 with 130/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 332/L. The minimum distance found is: 0.9729134114583333 with 142/L. Does the gallery contain the subject? False
+Test subject not found! The function was given 111/R. The minimum distance found is: 0.9658919270833334 with 083/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 066/L. The minimum distance found is: 0.979931640625 with 142/L. Does the gallery contain the subject? False
+Test subject not found! The function was given 258/R. The minimum distance found is: 0.9683235677083334 with 202/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 267/L. The minimum distance found is: 0.9644791666666667 with 202/L. Does the gallery contain the subject? False
+Test subject not found! The function was given 160/L. The minimum distance found is: 0.97529296875 with 329/R. Does the gallery contain the subject? False
+Test subject not found! The function was given 224/L. The minimum distance found is: 0.9771223958333334 with 138/L. Does the gallery contain the subject? False

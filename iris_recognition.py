@@ -1,6 +1,10 @@
+# project imports
+import iris_identification
+import iris_processing
+
+# global imports
 import cv2, os, random
 import numpy as np
-from scipy.spatial import distance as scipydistance
 
 # Global varbiales
 verbose = False
@@ -132,8 +136,7 @@ def eyelid_mask(img):
 	#cv2.imshow("new_bigger_img", new_bigger_img)
 	return img
 
-def hammingdistance(template1, template2):
-	return scipydistance.hamming(template1.ravel(), template2.ravel())
+
 
 def getTemplate(path):
 	global verbose
@@ -170,6 +173,7 @@ def main(*, verb=False):
 	verbose = verb
 
 	path = "CASIA-Iris-Lamp"
+	threshold = 0.93
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
@@ -180,35 +184,26 @@ def main(*, verb=False):
 	probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:20]
-	if test_subject not in gallery_subjects: gallery_subjects.append(test_subject)
+	gallery_subjects = d_keys[:10]
 	gallery = [] # Gallery is a list of list of images
 	for x in gallery_subjects: gallery.append(dataset[x])
 
+	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
+	#									(yes|no),				(no|no),						(yes|yes),						(), 								()  
+	FA = 0; GR = 0; DI = 0; TG = 0; TI = 0
+
 	## image matching ##
-	minDistance = float("inf")
-
-	for image_path in probe:
-		probeimage = cv2.imread(f"{path}/{test_subject}/{image_path}")
-
-		for gallery_subject in range(len(gallery)):
-			for test_path in gallery[gallery_subject]:
-
-				if(image_path == test_path): continue
-
-				galleryimage = cv2.imread(f"{path}/{gallery_subjects[gallery_subject]}/{test_path}")
-
-				d = hammingdistance(probeimage, galleryimage)
-				if(d < minDistance):
-					minDistance = d
-					matched = gallery_subjects[gallery_subject]
+	for test_subject in d_keys:
+		probe = dataset[test_subject]
+		subject_matched, minimum_distance = iris_identification.image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold)
 	
-	if(minDistance < 0.91):
-		print(f"The function was given {test_subject} to test. It has matched {matched} with minimum distance {minDistance}. \n" +
-					 f"The gallery contained {test_subject}? {test_subject in gallery_subjects}")
-	else:
-		print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minDistance} with {matched} \n" +
-				   f"Does the gallery contain the subject? {test_subject in gallery_subjects}")
+		if(minimum_distance < threshold):
+			print(f"The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects}")
+			os.system(f"echo The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects} >> result.txt")
+		else:
+			print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects}")
+			os.system(f"echo Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects} >> result.txt")
+
 
 	if(verbose):
 		key = cv2.waitKey(30000)
@@ -217,10 +212,3 @@ def main(*, verb=False):
 
 if __name__ == "__main__":
 	main()
-
-
-
-
-
-
-
