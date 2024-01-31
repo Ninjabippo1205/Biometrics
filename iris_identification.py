@@ -1,4 +1,4 @@
-import cv2, os
+import cv2
 from scipy.spatial import distance as scipydistance
 
 def hammingdistance(template1, template2):
