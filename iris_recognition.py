@@ -1,31 +1,21 @@
-import cv2, os
+import cv2, os, random
 import numpy as np
 from scipy.spatial import distance as scipydistance
 
 # Global varbiales
 verbose = False
 
-def createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory):
-		for folder in files_in_directory:
-			for interval in enrolled_users_intervals:
-				if(int(folder) >= interval[0] and int(folder) <= interval[1]):
-					dataset[folder] = {}
-					dataset[folder]["L"] = []
-					dataset[folder]["R"] = []
-					files_L = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "L")
-					files_R = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "R")
-					counter = 1
-					for L in files_L:
-						for image_interval in enrolled_image_intervals:
-							if(counter >= image_interval[0] and counter <= image_interval[1]):
-								dataset[folder]["L"].append("CASIA-Iris-Lamp/" + folder + "/" + "L" + "/" + L)
-						counter += 1
-					counter = 1
-					for R in files_R:
-						for image_interval in enrolled_image_intervals:
-							if(counter >= image_interval[0] and counter <= image_interval[1]):
-								dataset[folder]["R"].append("CASIA-Iris-Lamp/" + folder + "/" + "R" + "/" + R)	
-						counter += 1
+def createDatasetfromPath(path):
+	dataset = {}
+	for folder in os.listdir(path):
+		# Adding left eye images
+		if os.path.exists(f"CASIA-Iris-Lamp/{folder}/L"): # (as long as it exists)
+			dataset[f"{folder}/L"] = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "L")
+
+		# Adding right eye images
+		if os.path.exists(f"CASIA-Iris-Lamp/{folder}/R"):
+			dataset[f"{folder}/R"] = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "R")
+	return dataset
 
 def viewImages(dataset, timeout):
 	for i in dataset:
@@ -179,35 +169,51 @@ def main(*, verb=False):
 	global verbose
 	verbose = verb
 
-	dataset = {}
-	enrolled_users_intervals = [[1,5], [45,50]]
-	enrolled_image_intervals = [[1,3], [5,8]]
-	files_in_directory = os.listdir("CASIA-Iris-Lamp")
-	createDatasetfromPath(dataset, enrolled_users_intervals, enrolled_image_intervals, files_in_directory)
+	path = "CASIA-Iris-Lamp"
+
+	# Creating dataset
+	dataset = createDatasetfromPath(path=path)
+	d_keys = list(dataset.keys()); random.shuffle(d_keys)
+	
+	# Get a test subject based on the shuffled keys
+	test_subject = d_keys[random.randint(0, len(d_keys)-1)]
+	probe = dataset[test_subject] # Probe is a list of images
+
+	# Using the first 20 elements to use as gallery
+	gallery_subjects = d_keys[:20]
+	if test_subject not in gallery_subjects: gallery_subjects.append(test_subject)
+	gallery = [] # Gallery is a list of list of images
+	for x in gallery_subjects: gallery.append(dataset[x])
 
 	## image matching ##
 	minDistance = float("inf")
-	for x in dataset:
-		image1 = dataset[x]
 
-		for y in dataset:
-			if(x == y): continue
+	for image_path in probe:
+		probeimage = cv2.imread(f"{path}/{test_subject}/{image_path}")
 
-			image2 = dataset[y]
-			d = hammingdistance(image1, image2)
-			if(d < minDistance):
-				minDistance=d
-				matched = x  
-		
-	print(matched)
+		for gallery_subject in range(len(gallery)):
+			for test_path in gallery[gallery_subject]:
+
+				if(image_path == test_path): continue
+
+				galleryimage = cv2.imread(f"{path}/{gallery_subjects[gallery_subject]}/{test_path}")
+
+				d = hammingdistance(probeimage, galleryimage)
+				if(d < minDistance):
+					minDistance = d
+					matched = gallery_subjects[gallery_subject]
+	
+	if(minDistance < 0.91):
+		print(f"The function was given {test_subject} to test. It has matched {matched} with minimum distance {minDistance}. \n" +
+					 f"The gallery contained {test_subject}? {test_subject in gallery_subjects}")
+	else:
+		print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minDistance} with {matched} \n" +
+				   f"Does the gallery contain the subject? {test_subject in gallery_subjects}")
 
 	if(verbose):
 		key = cv2.waitKey(30000)
 		if key == 27 or key == 1048603: return
-	
-
-
-	cv2.destroyAllWindows()
+		cv2.destroyAllWindows()
 
 if __name__ == "__main__":
 	main()
