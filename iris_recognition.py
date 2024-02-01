@@ -141,7 +141,7 @@ def eyelid_mask(img):
 def getTemplate(path):
 	global verbose
 
-	frame = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+	frame = cv2.cvtColor(path, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 			
@@ -156,7 +156,7 @@ def getTemplate(path):
 	# Adding eyelashes mask to image and normalizing
 	normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
 	final_iris = eyelid_mask(normalized_iris)
-
+	
 	if(verbose): cv2.imshow("normalized_iris", final_iris)
 
 	width = final_iris.shape[0]
@@ -165,44 +165,90 @@ def getTemplate(path):
 	sigma = 6; theta = 0.8; lambda_ = 10; gamma = 2
 	gabor_kernel = cv2.getGaborKernel((width, height), sigma, theta, lambda_, gamma)
 	filtered_iris = cv2.filter2D(final_iris, cv2.CV_64F, gabor_kernel)
+	
+	cv2.imshow("feature2", filtered_iris) 
+	key = cv2.waitKey(3000)
+	if(key==27 or key == 1048603):
+		return gabor_kernel
+	vector = filtered_iris.flatten()
+
 	if(verbose): cv2.imshow("feature", filtered_iris)
-	return filtered_iris
+
+	return vector #filtered_iris
 
 def main(*, verb=False):
 	global verbose
 	verbose = verb
 
 	path = "CASIA-Iris-Lamp"
-	threshold = 0.93
+	threshold = 0.94
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
-	d_keys = list(dataset.keys()); random.shuffle(d_keys)
+	d_keys = list(dataset.keys())[:5]; random.shuffle(d_keys)
 	
 	# Get a test subject based on the shuffled keys
 	test_subject = d_keys[random.randint(0, len(d_keys)-1)]
 	probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:10]
+	gallery_subjects = d_keys[:3]
 	gallery = [] # Gallery is a list of list of images
 	for x in gallery_subjects: gallery.append(dataset[x])
 
 	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
 	#									(yes|no),				(no|no),						(yes|yes),						(), 								()  
-	FA = 0; GR = 0; DI = 0; TG = 0; TI = 0
+	FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(gallery_subjects)
+	DI = np.zeros(len(gallery_subjects)-1)
 
 	## image matching ##
 	for test_subject in d_keys:
-		probe = dataset[test_subject]
-		subject_matched, minimum_distance = iris_identification.image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold)
+		probe = dataset[test_subject][0]
 	
+		subject_matched, minimum_distance, matched_list = iris_identification.image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold)
+		find = False
+
 		if(minimum_distance < threshold):
+			if(subject_matched == test_subject):
+				DI[0] = DI[0] + 1
+				for m in matched_list.keys():
+					if m != test_subject:
+						FA = FA + 1
+						find = True
+						break
+
+				if find == False:
+					GR = GR +1	
+			else:
+				i = 0
+				for m in matched_list.keys():
+					if m == test_subject and i != 0:
+						DI[i] = DI[i] +1
+						break
+
+					i = i + 1
+				FA = FA + 1
+				
+
 			print(f"The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects}")
 			os.system(f"echo The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects} >> result.txt")
 		else:
+			GR = GR + 1
 			print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects}")
 			os.system(f"echo Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects} >> result.txt")
+
+		
+	DIR = np.zeros(len(gallery_subjects)-1)
+	DIR[0]= DI[0]/TG
+	FRR = 1 - DIR[0]
+	FAR = FA / TI
+	GRR = GR / TI
+
+	for i in range (1, len(gallery_subjects)-1):
+		DIR[i]= DI[i]/(TG+ DIR[i-1])
+
+	print("performance evaluation:", DIR, FRR, FAR, GRR)
+
 
 
 	if(verbose):
