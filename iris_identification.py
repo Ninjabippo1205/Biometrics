@@ -8,6 +8,11 @@ def hammingdistance(probe, galleryimage, queue, gallerysubject):
 	queue.put((scipydistance.hamming(probe, galleryimage), gallerysubject))
 	return 0 #correct exit code
 
+def euclideanDistance(probe, galleryimage, queue, gallerysubject):
+	galleryimage = IR.getTemplate(galleryimage).ravel()
+	queue.put((scipydistance.euclidean(probe.flatten(), galleryimage.flatten()), gallerysubject))
+	return 0
+
 def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=7):
 	minDistance = float("inf")
 	matched = ''
@@ -29,7 +34,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
 			if(image_path == test_path): continue
 
 			galleryimage = cv2.imread(f'{path}/{gallery_subjects[gallery_subject]}/{test_path}')
-			p = multiprocessing.Process(target=hammingdistance, args=(probeimage, galleryimage, queue, gallery_subject, ))
+			p = multiprocessing.Process(target=euclideanDistance, args=(probeimage, galleryimage, queue, gallery_subject, ))
 			jobs.append(p)
 			p.start()
 

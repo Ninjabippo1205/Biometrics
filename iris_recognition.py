@@ -216,9 +216,10 @@ def getTemplate(path):
 
 	filters = build_filters()
 	filitered_iris = process(final_iris, filters)
-	vector = binarize(filitered_iris)
 
-	return vector
+	#vector = binarize(filitered_iris)
+
+	return filitered_iris
 
 def process(img, filters):
 	accum = np.zeros_like(img)
@@ -234,6 +235,7 @@ def build_filters():
 	filters = []
 	ksize = 31
 	for theta in np.arange(0, np.pi, np.pi/16):
+		#sigma 6, lamb 10, gamma 2
 		params = {'ksize' : (ksize, ksize), 'sigma' : 1.0, 'theta' : theta, 'lambd' : 15.0, 'gamma' : 0.02, 'psi' : 0, 'ktype' : cv2.CV_32F}
 		kern = cv2.getGaborKernel(**params)
 		kern /= 1.5 * kern.sum()
@@ -247,7 +249,7 @@ def main(*, verb=False):
 	verbose = verb
 
 	path = "CASIA-Iris-Lamp"
-	threshold = 0.94
+	threshold = 7300
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
