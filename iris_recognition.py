@@ -127,12 +127,6 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 			unwrapped_img[i, j] = img[int(center[1] + radii[i]*np.sin(angles[j])), int(center[0] + radii[i]*np.cos(angles[j]))]
 	return unwrapped_img
 
-def eyelid_mask(img):
-	h, w = img.shape
-	new_bigger_img = np.zeros((h+300, w+300), dtype=np.uint8)
-	new_bigger_img[0:h, 0:w] = img
-	return img
-
 def eyelid_mask_after_normalization(img):
 	kernel = np.ones((8,8),np.uint8)
 	img_eroded = cv2.erode(img, kernel, iterations = 1)
@@ -215,10 +209,10 @@ def getTemplate(path):
 
 	# Adding eyelashes mask to image and normalizing
 	normalized_iris = normalizeWithPolarCoordinates(iris_without_eyelid_and_eyelashes_before_normalization, iris_center, pupil_radius, iris_radius)
-	final_iris = eyelid_mask(normalized_iris)
+	normalized_iris = normalized_iris.astype('uint8')
 	
-	#eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
-	#final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
+	eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
+	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
 
 	filters = build_filters()
 	filitered_iris = process(final_iris, filters)
