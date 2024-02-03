@@ -2,7 +2,7 @@ import cv2, multiprocessing
 import iris_recognition as IR
 from scipy.spatial import distance as scipydistance
 
-                
+
 def subject_hamming_distance(gallery, gallery_subjects, gallery_subject, path, image_path, probeimage):
     distances = []
 
