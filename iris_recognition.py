@@ -6,9 +6,6 @@ import iris_processing
 import cv2, os, random
 import numpy as np
 
-# Global varbiales
-verbose = False
-
 def createDatasetfromPath(path):
 	dataset = {}
 	for folder in os.listdir(path):
@@ -36,8 +33,6 @@ def drawCircle(img, id, center, radius_min, radius_max):
 	copy = cv2.cvtColor(copy, cv2.COLOR_GRAY2RGB)
 	cv2.circle(copy, center, radius_min, (0, 165, 255), 2)
 	cv2.circle(copy, center, radius_max, (203, 192, 255), 2)
-
-	if(verbose): cv2.imshow(str("Image with min and max Circles"+str(id)), copy)
 
 def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
@@ -189,8 +184,6 @@ def eyelid_mask_before_normalization(img, pupil_center, pupil_radius, iris_cente
 	return ris
 
 def getTemplate(path):
-	global verbose
-
 	frame = cv2.cvtColor(path, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
@@ -235,8 +228,7 @@ def build_filters():
 	filters = []
 	ksize = 31
 	for theta in np.arange(0, np.pi, np.pi/16):
-		#sigma 6, lamb 10, gamma 2
-		params = {'ksize' : (ksize, ksize), 'sigma' : 1.0, 'theta' : theta, 'lambd' : 15.0, 'gamma' : 0.02, 'psi' : 0, 'ktype' : cv2.CV_32F}
+		params = {'ksize' : (ksize, ksize), 'sigma' : 1.0, 'theta' : theta, 'lambd' : 15.0, 'gamma' : 2, 'psi' : 0, 'ktype' : cv2.CV_32F}
 		kern = cv2.getGaborKernel(**params)
 		kern /= 1.5 * kern.sum()
 		filters.append((kern, params))
@@ -244,25 +236,28 @@ def build_filters():
 	return filters
 
 
-def main(*, verb=False):
-	global verbose
-	verbose = verb
-
+def main():
 	path = "CASIA-Iris-Lamp"
 	threshold = 7300
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
-	d_keys = list(dataset.keys())[:5]; random.shuffle(d_keys)
+	d_keys = list(dataset.keys()); random.shuffle(d_keys)
 	
 	# Get a test subject based on the shuffled keys
 	test_subject = d_keys[random.randint(0, len(d_keys)-1)]
 	probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:3]
-	gallery = [] # Gallery is a list of list of images
-	for x in gallery_subjects: gallery.append(dataset[x])
+	gallery_subjects = d_keys[:7]
+	# Checking that there is both left and right eye for every subject
+	for eye in gallery_subjects:
+										# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
+		if not eye[:-1]+chr(158 - ord(eye[-1])) in gallery_subjects: gallery_subjects.append(eye[:-1]+chr(158 - ord(eye[-1])))
+
+
+	gallery = {} # Gallery is a subset of the dictionary "dataset"
+	for x in gallery_subjects: gallery[x] = dataset[x]
 
 	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
 	#									(yes|no),				(no|no),						(yes|yes),						(), 								()  
@@ -316,13 +311,6 @@ def main(*, verb=False):
 		DIR[i]= DI[i]/(TG+ DIR[i-1])
 
 	print("performance evaluation:", DIR, FRR, FAR, GRR)
-
-
-
-	if(verbose):
-		key = cv2.waitKey(30000)
-		if key == 27 or key == 1048603: return
-		cv2.destroyAllWindows()
 
 if __name__ == "__main__":
 	main()
