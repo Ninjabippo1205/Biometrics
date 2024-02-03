@@ -30,7 +30,7 @@ def viewImages(dataset, timeout):
 
 def main():
 	path = "CASIA-Iris-Lamp"
-	threshold = 1400
+	threshold = 12000
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
@@ -41,7 +41,7 @@ def main():
 	probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:2]
+	gallery_subjects = d_keys[:15]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
