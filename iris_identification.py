@@ -1,7 +1,6 @@
-import cv2
+import cv2, multiprocessing
 import iris_recognition as IR
 from scipy.spatial import distance as scipydistance
-from multiprocessing import Pool
 
                 
 def subject_hamming_distance(gallery, gallery_subjects, gallery_subject, path, image_path, probeimage):
@@ -19,7 +18,7 @@ def subject_hamming_distance(gallery, gallery_subjects, gallery_subject, path, i
     return distances  # Return distances instead of putting it in a queue
 
 
-def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=14):
+def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=multiprocessing.cpu_count()):
     minDistance = float("inf")
     matched = ''
     matched_list = {}
@@ -28,16 +27,20 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
     probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
     probeimage = IR.getTemplate(probeimage).ravel()
 
-    # Create a pool of processes
-    with Pool(processes=subprocess_count) as pool:
-    # Use a process for each subject
-        results = []
-        for gallery_subject in range(len(gallery)):
-            result = pool.apply_async(subject_hamming_distance, args=(gallery, gallery_subjects, gallery_subject, path, probe, probeimage))
-            results.append(result)
+    pool = multiprocessing.Pool(
+        processes=subprocess_count,
+        maxtasksperchild = 2
+    )
 
-    	# Collect the results as they become available
-        distances = [result.get() for result in results]
+    # Creating args
+    args = []
+    for gallery_subject in range(len(gallery)):
+        args.append([gallery, gallery_subjects, gallery_subject, path, probe, probeimage])
+
+    # Mapping to pool
+    distances = pool.starmap(subject_hamming_distance, args)
+    pool.close()
+    pool.join()
 
     # Finding minimum distance based on precalculated distances
     for gallery_subject in range(len(distances)):
