@@ -15,6 +15,11 @@ def subject_hamming_distance(gallery, gallery_subject, probeimage, path, image_p
 
     return distances  # Return distances instead of putting it in a queue
 
+def euclideanDistance(probe, galleryimage, queue, gallerysubject):
+	galleryimage = IR.getTemplate(galleryimage).ravel()
+	queue.put((scipydistance.euclidean(probe.flatten(), galleryimage.flatten()), gallerysubject))
+	return 0
+
 def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=multiprocessing.cpu_count() - 4):
     minDistance = float("inf")
     matched = ''

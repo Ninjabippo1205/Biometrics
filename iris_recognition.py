@@ -209,9 +209,10 @@ def getTemplate(path):
 
 	filters = build_filters()
 	filitered_iris = process(final_iris, filters)
-	vector = binarize(filitered_iris)
 
-	return vector
+	#vector = binarize(filitered_iris)
+
+	return filitered_iris
 
 def process(img, filters):
 	accum = np.zeros_like(img)
@@ -237,7 +238,7 @@ def build_filters():
 
 def main():
 	path = "CASIA-Iris-Lamp"
-	threshold = 0.94
+	threshold = 7300
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
