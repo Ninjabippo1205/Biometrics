@@ -1,4 +1,4 @@
-import cv2, multiprocessing
+import cv2, numpy, multiprocessing
 import iris_processing as IrisProcess
 from scipy.spatial import distance as scipydistance
 
@@ -10,8 +10,9 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
         if(image_path == test_path): continue
         
         galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-        galleryimage = IrisProcess.getTemplate(galleryimage).ravel()
-        distances.append(scipydistance.euclidean(probeimage.flatten(), galleryimage.flatten()))
+        galleryimage = numpy.ravel(IrisProcess.getTemplate(galleryimage))
+
+        distances.append(scipydistance.euclidean(probeimage, galleryimage))
 
     return distances  # Return distances instead of putting it in a queue
 
@@ -22,7 +23,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
 
     # Getting template for probe
     probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-    probeimage = IrisProcess.getTemplate(probeimage).ravel()
+    probeimage = numpy.ravel(IrisProcess.getTemplate(probeimage))
 
     pool = multiprocessing.Pool(
         processes=subprocess_count,

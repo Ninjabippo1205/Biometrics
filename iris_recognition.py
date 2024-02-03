@@ -30,7 +30,7 @@ def viewImages(dataset, timeout):
 
 def main():
 	path = "CASIA-Iris-Lamp"
-	threshold = 7300
+	threshold = 1400
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
@@ -41,11 +41,13 @@ def main():
 	probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:7]
+	gallery_subjects = d_keys[:2]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
-										# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
-		if not eye[:-1]+chr(158 - ord(eye[-1])) in gallery_subjects: gallery_subjects.append(eye[:-1]+chr(158 - ord(eye[-1])))
+		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
+		other_eye = eye[:-1]+chr(158 - ord(eye[-1]))
+		
+		if not other_eye in gallery_subjects and os.path.exists(f'{path}/{other_eye}'): gallery_subjects.append(other_eye)
 
 
 	gallery = {} # Gallery is a subset of the dictionary "dataset"

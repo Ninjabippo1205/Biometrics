@@ -1,4 +1,5 @@
 import cv2, numpy as np
+from scipy.ndimage import map_coordinates
 
 def drawCircle(img, id, center, radius_min, radius_max):
 	copy = img.copy()
@@ -84,14 +85,13 @@ def eyelashes_mask(eye_image):
 def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	img = image.copy()
 	# Crea una griglia di angoli e raggi
-	radii = np.linspace(pupil_radius, iris_radius, 100)  	# altezza proporzionale alla differenza dei raggi
-	angles = np.arange(0, 2*np.pi, 2*np.pi/360)						# larghezza proporzionale alla circonferenza dell'iride
-	
+	radii = np.linspace(pupil_radius, iris_radius, 100)  	# height proportional to radius difference
+	angles = np.arange(0, 2*np.pi, 2*np.pi/360)						# width proportional to iris circumference
 	unwrapped_img = np.zeros((radii.size, angles.size))
-
 	for i in range(radii.size):
 		for j in range(angles.size):
-			unwrapped_img[i, j] = img[int(center[1] + radii[i]*np.sin(angles[j])), int(center[0] + radii[i]*np.cos(angles[j]))]
+			# Using bilinear interpolation. This is best case insted of using the int() function that might cause problem in edge cases
+			unwrapped_img[i, j] = map_coordinates(img, [[center[1] + radii[i]*np.sin(angles[j])], [center[0] + radii[i]*np.cos(angles[j])]], order=1)
 	return unwrapped_img
 
 def eyelid_mask_after_normalization(img):
@@ -159,7 +159,7 @@ def getTemplate(path):
 	frame = cv2.cvtColor(path, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
-			
+
 	preProcessed_image_for_iris = preProcessing_iris_image(frame)
 	min_radius = int(pupil_radius + (0.3*pupil_radius))
 	max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
@@ -167,7 +167,7 @@ def getTemplate(path):
 
 	lashes_mask = eyelashes_mask(frame.copy())
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-			
+
 	p_iris = eyelid_mask_before_normalization(partial_iris, pupil_center, pupil_radius, iris_center, iris_radius)
 	partial_iris = cv2.bitwise_and(partial_iris, partial_iris, mask=p_iris)
 	iris_without_eyelid_and_eyelashes_before_normalization = cv2.bitwise_and(partial_iris, lashes_mask)
@@ -175,14 +175,12 @@ def getTemplate(path):
 	# Adding eyelashes mask to image and normalizing
 	normalized_iris = normalizeWithPolarCoordinates(iris_without_eyelid_and_eyelashes_before_normalization, iris_center, pupil_radius, iris_radius)
 	normalized_iris = normalized_iris.astype('uint8')
-	
+
 	eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
 	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
-
+			 
 	filters = build_filters()
 	filitered_iris = process(final_iris, filters)
-
-	#vector = binarize(filitered_iris)
 
 	return filitered_iris
 
