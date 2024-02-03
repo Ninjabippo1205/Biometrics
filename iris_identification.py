@@ -1,8 +1,8 @@
-import cv2, multiprocessing, os
-import iris_recognition as IR
+import cv2, multiprocessing
+import iris_processing as IrisProcess
 from scipy.spatial import distance as scipydistance
 
-def subject_hamming_distance(gallery, gallery_subject, probeimage, path, image_path):
+def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image_path):
     distances = []
 
     for i in range(len(gallery[gallery_subject])):
@@ -10,15 +10,10 @@ def subject_hamming_distance(gallery, gallery_subject, probeimage, path, image_p
         if(image_path == test_path): continue
         
         galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-        galleryimage = IR.getTemplate(galleryimage).ravel()
-        distances.append(scipydistance.hamming(probeimage, galleryimage))
+        galleryimage = IrisProcess.getTemplate(galleryimage).ravel()
+        distances.append(scipydistance.euclidean(probeimage.flatten(), galleryimage.flatten()))
 
     return distances  # Return distances instead of putting it in a queue
-
-def euclideanDistance(probe, galleryimage, queue, gallerysubject):
-	galleryimage = IR.getTemplate(galleryimage).ravel()
-	queue.put((scipydistance.euclidean(probe.flatten(), galleryimage.flatten()), gallerysubject))
-	return 0
 
 def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=multiprocessing.cpu_count() - 4):
     minDistance = float("inf")
@@ -27,7 +22,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
 
     # Getting template for probe
     probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-    probeimage = IR.getTemplate(probeimage).ravel()
+    probeimage = IrisProcess.getTemplate(probeimage).ravel()
 
     pool = multiprocessing.Pool(
         processes=subprocess_count,
@@ -40,7 +35,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
         args.append([gallery, gallery_subject, probeimage, path, probe])
 
     # Mapping to pool
-    distances = pool.starmap(subject_hamming_distance, args)
+    distances = pool.starmap(subject_euclidean_distance, args)
     pool.close()
     pool.join()
 
