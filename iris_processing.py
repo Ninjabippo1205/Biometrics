@@ -97,7 +97,11 @@ def eyelid_mask_after_normalization(img):
 	kernel = np.ones((8,8),np.uint8)
 	img_eroded = cv2.erode(img, kernel, iterations = 1)
 	contorni, hierarchy = cv2.findContours(img_eroded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-	contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
+
+	if len(contorni) == 0: return img
+	if hierarchy is not None:
+		contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
+	
 	max_area = max(cv2.contourArea(contorno) for contorno in contorni)
 	new = np.zeros_like(img)
 	for contorno in contorni:
@@ -133,7 +137,10 @@ def eyelid_mask_before_normalization(img, pupil_center, pupil_radius, iris_cente
 	mask = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY)[1]
 	
 	contorni, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-	contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
+	if len(contorni) == 0: return img
+	if hierarchy is not None:
+		contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
+	
 	new = np.zeros_like(img)
 
 	max_area = max(cv2.contourArea(contorno) for contorno in contorni)
@@ -154,6 +161,11 @@ def eyelid_mask_before_normalization(img, pupil_center, pupil_radius, iris_cente
 	ris = cv2.bitwise_and(res, mask)
 	return ris
 
+def check_if_all_black(partial_iris, lashes_mask):
+	ris = cv2.bitwise_and(partial_iris, lashes_mask)
+	if np.min(ris) < 1: return partial_iris
+	return ris
+
 def getTemplate(image):
 	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
@@ -169,7 +181,7 @@ def getTemplate(image):
 
 	p_iris = eyelid_mask_before_normalization(partial_iris, pupil_center, pupil_radius, iris_center, iris_radius)
 	partial_iris = cv2.bitwise_and(partial_iris, partial_iris, mask=p_iris)
-	iris_without_eyelid_and_eyelashes_before_normalization = cv2.bitwise_and(partial_iris, lashes_mask)
+	iris_without_eyelid_and_eyelashes_before_normalization = check_if_all_black(partial_iris, lashes_mask)
 
 	# Adding eyelashes mask to image and normalizing
 	normalized_iris = normalizeWithPolarCoordinates(iris_without_eyelid_and_eyelashes_before_normalization, iris_center, pupil_radius, iris_radius)
@@ -205,25 +217,24 @@ def build_filters():
 	return filters
 
 # Processed image save functions
-def saveDataset(dataset, imagepath):
-	path = 'template'
-	if not os.path.exists(path): os.mkdir(path)
+def saveDataset(dataset, images_folder):
+	if not os.path.exists('template'): os.mkdir('template')
 
 	for object in dataset:
 		# Creating folder and saving all templates into it
-		if not os.path.exists(f'{path}/{object[:-2]}'): os.mkdir(f'{path}/{object[:-2]}')
-		if not os.path.exists(f'{path}/{object}'): os.mkdir(f'{path}/{object}')
+		if not os.path.exists(f'template/{object[:-2]}'): os.mkdir(f'template/{object[:-2]}')
+		if not os.path.exists(f'template/{object}'): os.mkdir(f'template/{object}')
 		for image in dataset[object]:
-			if os.path.exists(f'{path}/{object}/{image[:-4]}.npy'): continue
+			if os.path.exists(f'template/{object}/{image[:-4]}.npy'): continue
 
-			template = getTemplate(cv2.imread(f"{imagepath}/{object}/{image}")).flatten()
-			np.save(f"{path}/{object}/{image[:-4]}", template)
+			template = getTemplate(cv2.imread(f"{images_folder}/{object}/{image}")).flatten()
+			np.save(f"template/{object}/{image[:-4]}", template)
 	
 def saveTemplate(template, path):
 	items = path.split('/')
 
 	if not os.path.exists(items[0]): os.mkdir(items[0])
-	if not os.path.exists(f'{items[0]/items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
+	if not os.path.exists(f'{items[0]}/{items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
 	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
 	
-	np.save(template, path)
+	np.save(path, template)

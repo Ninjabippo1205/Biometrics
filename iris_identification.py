@@ -1,4 +1,4 @@
-import cv2, multiprocessing, numpy as np
+import cv2, numpy as np
 from scipy.spatial import distance as scipydistance
 
 import iris_processing as IrisProcessing
@@ -21,23 +21,14 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
 
     return distances  # Return distances instead of putting it in a queue
 
-def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=int(multiprocessing.cpu_count()*3/4)):
+def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, process_pool):
     minDistance = float("inf")
     matched = ''
     matched_list = {}
 
-    # Getting template for probe
-    try:
-        probeimage = np.load(f'template/{test_subject}/{probe[:-4]}.npy')
-    except FileNotFoundError:
-        probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-        probeimage = IrisProcessing.getTemplate(probeimage).flatten()
-        IrisProcessing.saveTemplate(probeimage, f'template/{test_subject}/{probe[:-4]}.npy')
-
-    pool = multiprocessing.Pool(
-        processes=subprocess_count,
-        #maxtasksperchild = 1 # Keep commented for maximum performace
-    )
+    # Getting template for probe.
+    probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
+    probeimage = IrisProcessing.getTemplate(probeimage).flatten()
 
     # Creating args
     args = []
@@ -45,9 +36,8 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
         args.append([gallery, gallery_subject, probeimage, path, probe])
 
     # Mapping to pool
-    distances = pool.starmap(subject_euclidean_distance, args)
-    pool.close()
-    pool.join()
+    distances = process_pool.starmap(subject_euclidean_distance, args)
+    process_pool.close()
 
     # Finding minimum distance based on precalculated distances
     for gallery_subject in range(len(distances)):
