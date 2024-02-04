@@ -1,5 +1,6 @@
 # project imports
 import iris_identification
+import iris_processing as IrisProcessing
 
 # global imports
 import cv2, os, random
@@ -33,6 +34,10 @@ def main():
 
 	# Creating dataset
 	dataset = createDatasetfromPath(path=path)
+
+	# Saving all templates
+	#IrisProcessing.saveDataset(dataset, path)
+
 	d_keys = list(dataset.keys()); random.shuffle(d_keys)
 	
 	# Get a test subject based on the shuffled keys

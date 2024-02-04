@@ -1,5 +1,6 @@
-import cv2, numpy as np
+import cv2, os, numpy as np
 
+# Iris processing
 def drawCircle(img, id, center, radius_min, radius_max):
 	copy = img.copy()
 	copy = cv2.cvtColor(copy, cv2.COLOR_GRAY2RGB)
@@ -153,8 +154,8 @@ def eyelid_mask_before_normalization(img, pupil_center, pupil_radius, iris_cente
 	ris = cv2.bitwise_and(res, mask)
 	return ris
 
-def getTemplate(path):
-	frame = cv2.cvtColor(path, cv2.COLOR_BGR2GRAY)
+def getTemplate(image):
+	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 
@@ -202,3 +203,27 @@ def build_filters():
 		filters.append((kern, params))
 	
 	return filters
+
+# Processed image save functions
+def saveDataset(dataset, imagepath):
+	path = 'template'
+	if not os.path.exists(path): os.mkdir(path)
+
+	for object in dataset:
+		# Creating folder and saving all templates into it
+		if not os.path.exists(f'{path}/{object[:-2]}'): os.mkdir(f'{path}/{object[:-2]}')
+		if not os.path.exists(f'{path}/{object}'): os.mkdir(f'{path}/{object}')
+		for image in dataset[object]:
+			if os.path.exists(f'{path}/{object}/{image[:-4]}.npy'): continue
+
+			template = np.ravel(getTemplate(cv2.imread(f"{imagepath}/{object}/{image}")))
+			np.save(f"{path}/{object}/{image[:-4]}", template)
+	
+def saveTemplate(template, path):
+	items = path.split('/')
+
+	if not os.path.exists(items[0]): os.mkdir(items[0])
+	if not os.path.exists(f'{items[0]/items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
+	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
+	
+	np.save(template, path)

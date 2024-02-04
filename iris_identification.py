@@ -1,6 +1,7 @@
-import cv2, numpy, multiprocessing
-import iris_processing as IrisProcess
+import cv2, multiprocessing, numpy as np
 from scipy.spatial import distance as scipydistance
+
+import iris_processing as IrisProcessing
 
 def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image_path):
     distances = []
@@ -9,8 +10,12 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
         test_path = gallery[gallery_subject][i]
         if(image_path == test_path): continue
         
-        galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-        galleryimage = numpy.ravel(IrisProcess.getTemplate(galleryimage))
+        try:
+            galleryimage = np.load(f'template/{gallery_subject}/{test_path[:-4]}.npy')
+        except FileNotFoundError:
+            galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
+            galleryimage = np.ravel(IrisProcessing.getTemplate(galleryimage))
+            IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
 
         distances.append(scipydistance.euclidean(probeimage, galleryimage))
 
@@ -22,8 +27,12 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
     matched_list = {}
 
     # Getting template for probe
-    probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-    probeimage = numpy.ravel(IrisProcess.getTemplate(probeimage))
+    try:
+        probeimage = np.load(f'template/{test_subject}/{probe[:-4]}.npy')
+    except FileNotFoundError:
+        probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
+        probeimage = np.ravel(IrisProcessing.getTemplate(probeimage))
+        IrisProcessing.saveTemplate(probeimage, f'template/{test_subject}/{probe[:-4]}.npy')
 
     pool = multiprocessing.Pool(
         processes=subprocess_count,
