@@ -216,7 +216,7 @@ def saveDataset(dataset, imagepath):
 		for image in dataset[object]:
 			if os.path.exists(f'{path}/{object}/{image[:-4]}.npy'): continue
 
-			template = np.ravel(getTemplate(cv2.imread(f"{imagepath}/{object}/{image}")))
+			template = getTemplate(cv2.imread(f"{imagepath}/{object}/{image}")).flatten()
 			np.save(f"{path}/{object}/{image[:-4]}", template)
 	
 def saveTemplate(template, path):

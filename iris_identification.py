@@ -14,7 +14,7 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
             galleryimage = np.load(f'template/{gallery_subject}/{test_path[:-4]}.npy')
         except FileNotFoundError:
             galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-            galleryimage = np.ravel(IrisProcessing.getTemplate(galleryimage))
+            galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
             IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
 
         distances.append(scipydistance.euclidean(probeimage, galleryimage))
@@ -31,7 +31,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
         probeimage = np.load(f'template/{test_subject}/{probe[:-4]}.npy')
     except FileNotFoundError:
         probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-        probeimage = np.ravel(IrisProcessing.getTemplate(probeimage))
+        probeimage = IrisProcessing.getTemplate(probeimage).flatten()
         IrisProcessing.saveTemplate(probeimage, f'template/{test_subject}/{probe[:-4]}.npy')
 
     pool = multiprocessing.Pool(
