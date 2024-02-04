@@ -205,25 +205,24 @@ def build_filters():
 	return filters
 
 # Processed image save functions
-def saveDataset(dataset, imagepath):
-	path = 'template'
-	if not os.path.exists(path): os.mkdir(path)
+def saveDataset(dataset, images_folder):
+	if not os.path.exists('template'): os.mkdir('template')
 
 	for object in dataset:
 		# Creating folder and saving all templates into it
-		if not os.path.exists(f'{path}/{object[:-2]}'): os.mkdir(f'{path}/{object[:-2]}')
-		if not os.path.exists(f'{path}/{object}'): os.mkdir(f'{path}/{object}')
+		if not os.path.exists(f'template/{object[:-2]}'): os.mkdir(f'template/{object[:-2]}')
+		if not os.path.exists(f'template/{object}'): os.mkdir(f'template/{object}')
 		for image in dataset[object]:
-			if os.path.exists(f'{path}/{object}/{image[:-4]}.npy'): continue
+			if os.path.exists(f'template/{object}/{image[:-4]}.npy'): continue
 
-			template = getTemplate(cv2.imread(f"{imagepath}/{object}/{image}")).flatten()
-			np.save(f"{path}/{object}/{image[:-4]}", template)
+			template = getTemplate(cv2.imread(f"{images_folder}/{object}/{image}")).flatten()
+			np.save(f"template/{object}/{image[:-4]}", template)
 	
 def saveTemplate(template, path):
 	items = path.split('/')
 
 	if not os.path.exists(items[0]): os.mkdir(items[0])
-	if not os.path.exists(f'{items[0]/items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
+	if not os.path.exists(f'{items[0]}/{items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
 	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
 	
-	np.save(template, path)
+	np.save(path, template)

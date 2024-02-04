@@ -3,8 +3,9 @@ import iris_identification
 import iris_processing as IrisProcessing
 
 # global imports
-import cv2, os, random
+import cv2, os, random, multiprocessing, argparse
 import numpy as np
+from itertools import islice
 
 def createDatasetfromPath(path):
 	dataset = {}
@@ -28,15 +29,66 @@ def viewImages(dataset, timeout):
 				if key == 27 or key == 1048603:
 					break
 
+
+def dataset_chunks(dataset, parts):
+	it = iter(dataset)
+	size = int(len(dataset)/parts)
+	for _ in range(0, len(dataset), size):
+		yield {k:dataset[k] for k in islice(it, size)}
+
+
 def main():
-	path = "CASIA-Iris-Lamp"
+	parser = argparse.ArgumentParser(
+		prog="IrisRecognition",
+		description="This program handles enrlomment and recognition of someone's iris",
+		epilog=""
+	)
+
+	parser.add_argument('-p', '--path', dest="path", type=str, default="CASIA-Iris-Lamp", help="Folder where iris images are saved")
+	parser.add_argument('-pc', '--process-count', dest="processcount", type=int,
+										 default=int(multiprocessing.cpu_count()*3/4), help="Amount of processes allocated for this program")
+	
+	parser.add_argument('-t', '--template', dest='template', action='store_true',
+										  default=False, help="To be used if you want to calculate every image template")
+	parser.add_argument('--parts', dest='parts', default=50, type=int,
+										 help="Amount of parts to divide the dataset; used for template creation. WARNING! The -t flag must be set")
+	
+	arguments = parser.parse_args()
+	if not os.path.exists(arguments.path):
+		print("Path folder not found.")
+		exit(-1)
+	
+	if arguments.processcount < 0 or arguments.processcount == 0:
+		print("Given process argument is invalid.")
+		exit(-1)
+	elif arguments.processcount > multiprocessing.cpu_count():
+		print("The number of process given is more than the number of cpu cores. This may cause the system to slow down.")
+		_ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
+		if _ != '' or _ == 'q':
+			exit(-1)
+
+	pool = multiprocessing.Pool(
+    processes=arguments.processcount,
+    #maxtasksperchild = 1 # Keep commented for maximum performace
+  )
+
 	threshold = 12000
 
-	# Creating dataset
-	dataset = createDatasetfromPath(path=path)
+	# Create dataset
+	dataset = pool.apply(func=createDatasetfromPath, args=(arguments.path,))
+	
+	# Checking if the entire dataset template calulation is asked
+	if arguments.template is True:
+		# Creating dataset arguments to divide dataset evenly. This will distribute the images creations to all processes
+		dataset_arguments = []
+		datasetchunks = dataset_chunks(dataset, arguments.parts)
+		for _ in datasetchunks: dataset_arguments.append((_, arguments.path))
 
-	# Saving all templates
-	#IrisProcessing.saveDataset(dataset, path)
+		pool.starmap(func=IrisProcessing.saveDataset, iterable=dataset_arguments)
+		exit(0)
+
+	# Saving all templates using allocated processes.
+	pool.apply_async(func=IrisProcessing.saveDataset, args=(dataset, arguments.path,))
 
 	d_keys = list(dataset.keys()); random.shuffle(d_keys)
 	
@@ -50,15 +102,14 @@ def main():
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
 		other_eye = eye[:-1]+chr(158 - ord(eye[-1]))
-		
-		if not other_eye in gallery_subjects and os.path.exists(f'{path}/{other_eye}'): gallery_subjects.append(other_eye)
+		if not other_eye in gallery_subjects and os.path.exists(f'{arguments.path}/{other_eye}'): gallery_subjects.append(other_eye)
 
 
 	gallery = {} # Gallery is a subset of the dictionary "dataset"
 	for x in gallery_subjects: gallery[x] = dataset[x]
 
 	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
-	#									(yes|no),				(no|no),						(yes|yes),						(), 								()  
+	#									(yes|no),				(no|no),						(yes|yes)
 	FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(gallery_subjects)
 	DI = np.zeros(len(gallery_subjects*40)-1)
 
@@ -66,29 +117,30 @@ def main():
 	for test_subject in d_keys:
 		probe = dataset[test_subject][0]
 	
-		subject_matched, minimum_distance, matched_list = iris_identification.image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold)
 		find = False
+		subject_matched, minimum_distance, matched_list = iris_identification.image_matching(arguments.path, test_subject, probe,
+																																											   gallery, gallery_subjects, threshold, pool)
 
 		if(minimum_distance < threshold):
 			if(subject_matched == test_subject):
 				DI[0] = DI[0] + 1
 				for m in matched_list.keys():
 					if m != test_subject:
-						FA = FA + 1
+						FA += 1
 						find = True
 						break
 
 				if find == False:
-					GR = GR +1	
+					GR += 1	
 			else:
 				i = 0
 				for m in matched_list.keys():
 					if m == test_subject and i != 0:
-						DI[i] = DI[i] +1
+						DI[i] += 1
 						break
 
-					i = i + 1
-				FA = FA + 1
+					i += 1
+				FA += 1
 				
 
 			print(f"The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects}")
