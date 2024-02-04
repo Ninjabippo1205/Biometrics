@@ -16,7 +16,7 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
 
     return distances  # Return distances instead of putting it in a queue
 
-def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=multiprocessing.cpu_count() - 4):
+def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, subprocess_count=int(multiprocessing.cpu_count()*3/4)):
     minDistance = float("inf")
     matched = ''
     matched_list = {}

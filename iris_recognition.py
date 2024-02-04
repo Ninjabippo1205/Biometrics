@@ -27,7 +27,6 @@ def viewImages(dataset, timeout):
 				if key == 27 or key == 1048603:
 					break
 
-
 def main():
 	path = "CASIA-Iris-Lamp"
 	threshold = 12000

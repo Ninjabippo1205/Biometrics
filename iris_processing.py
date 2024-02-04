@@ -1,5 +1,4 @@
 import cv2, numpy as np
-from scipy.ndimage import map_coordinates
 
 def drawCircle(img, id, center, radius_min, radius_max):
 	copy = img.copy()
@@ -68,7 +67,6 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	return img
 
 def eyelashes_mask(eye_image):
-
 	# Apply Gaussian blur to reduce noise
 	blurred = cv2.GaussianBlur(eye_image, (5, 5), 0)
 	
@@ -87,11 +85,11 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	# Crea una griglia di angoli e raggi
 	radii = np.linspace(pupil_radius, iris_radius, 100)  	# height proportional to radius difference
 	angles = np.arange(0, 2*np.pi, 2*np.pi/360)						# width proportional to iris circumference
+
 	unwrapped_img = np.zeros((radii.size, angles.size))
 	for i in range(radii.size):
 		for j in range(angles.size):
-			# Using bilinear interpolation. This is best case insted of using the int() function that might cause problem in edge cases
-			unwrapped_img[i, j] = map_coordinates(img, [[center[1] + radii[i]*np.sin(angles[j])], [center[0] + radii[i]*np.cos(angles[j])]], order=1)
+			unwrapped_img[i, j] = img[int(center[1] + radii[i]*np.sin(angles[j])), int(center[0] + radii[i]*np.cos(angles[j]))]
 	return unwrapped_img
 
 def eyelid_mask_after_normalization(img):
