@@ -110,7 +110,7 @@ def main():
 
 	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
 	#									(yes|no),				(no|no),						(yes|yes)
-	FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(gallery_subjects)
+	FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(d_keys)
 	DI = np.zeros(len(gallery_subjects*40)-1)
 
 	## image matching ##
