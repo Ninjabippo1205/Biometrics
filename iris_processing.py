@@ -213,7 +213,7 @@ def build_filters():
 		kern = cv2.getGaborKernel(**params)
 		kern /= 1.5 * kern.sum()
 		filters.append((kern, params))
-	
+
 	return filters
 
 # Processed image save functions
@@ -227,14 +227,17 @@ def saveDataset(dataset, images_folder):
 		for image in dataset[object]:
 			if os.path.exists(f'template/{object}/{image[:-4]}.npy'): continue
 
-			template = getTemplate(cv2.imread(f"{images_folder}/{object}/{image}")).flatten()
-			np.save(f"template/{object}/{image[:-4]}", template)
-	
+			try:
+				template = getTemplate(cv2.imread(f"{images_folder}/{object}/{image}")).flatten()
+				np.save(f"template/{object}/{image[:-4]}", template)
+			except Exception:
+				continue
+
 def saveTemplate(template, path):
 	items = path.split('/')
 
 	if not os.path.exists(items[0]): os.mkdir(items[0])
 	if not os.path.exists(f'{items[0]}/{items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
 	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
-	
+
 	np.save(path, template)

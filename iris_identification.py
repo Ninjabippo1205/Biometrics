@@ -9,13 +9,18 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
     for i in range(len(gallery[gallery_subject])):
         test_path = gallery[gallery_subject][i]
         if(image_path == test_path): continue
-        
+
         try:
             galleryimage = np.load(f'template/{gallery_subject}/{test_path[:-4]}.npy')
         except FileNotFoundError:
-            galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-            galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
-            IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
+            try:
+                galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
+                galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
+                IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
+            except Exception:
+                distances.append(0)
+                continue
+
 
         distances.append(scipydistance.euclidean(probeimage, galleryimage))
 
