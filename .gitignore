@@ -4,3 +4,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+
+# Large files
+haarcascade_frontalface_default.xml
+Trainer.yml
