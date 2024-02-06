@@ -1,11 +1,8 @@
 import cv2, os
 import numpy as np
 
-recognizer = cv2.face.LBPHFaceRecognizer_create()
-path="faceRecognition\\datasets"
-names={}
 
-def createDataset():
+def createDataset(path):
     return []
 
 def getImageID(path):
@@ -28,7 +25,10 @@ def getImageID(path):
     return ids, faces
 
 def main():
-    dataset = createDataset()
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    path="faceRecognition/"
+
+    dataset = createDataset(path)
     IDs, faceData = getImages(dataset)
 
     recognizer.train(faceData, np.array(IDs))
