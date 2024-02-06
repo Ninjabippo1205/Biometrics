@@ -12,12 +12,12 @@ def createDatasetfromPath(path):
 	dataset = {}
 	for folder in os.listdir(path):
 		# Adding left eye images
-		if os.path.exists(f"CASIA-Iris-Lamp/{folder}/L"): # (as long as it exists)
-			dataset[f"{folder}/L"] = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "L")
+		if os.path.exists(f"CASIA-Iris-Interval/{folder}/L"): # (as long as it exists)
+			dataset[f"{folder}/L"] = os.listdir("CASIA-Iris-Interval/" + folder + "/" + "L")
 
 		# Adding right eye images
-		if os.path.exists(f"CASIA-Iris-Lamp/{folder}/R"):
-			dataset[f"{folder}/R"] = os.listdir("CASIA-Iris-Lamp/" + folder + "/" + "R")
+		if os.path.exists(f"CASIA-Iris-Interval/{folder}/R"):
+			dataset[f"{folder}/R"] = os.listdir("CASIA-Iris-Interval/" + folder + "/" + "R")
 	return dataset
 
 def viewImages(dataset, timeout):
@@ -45,7 +45,7 @@ def main():
 		epilog=""
 	)
 
-	parser.add_argument('-p', '--path', dest="path", type=str, default="CASIA-Iris-Lamp", help="Folder where iris images are saved")
+	parser.add_argument('-p', '--path', dest="path", type=str, default="CASIA-Iris-Interval", help="Folder where iris images are saved")
 	parser.add_argument('-pc', '--process-count', dest="processcount", type=int,
 										 default=int(multiprocessing.cpu_count()*3/4), help="Amount of processes allocated for this program")
 	
@@ -96,10 +96,10 @@ def main():
 	#probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:200]							#keys in the gallery, the template is calculated only if not alredy stored
+	gallery_subjects = d_keys[:20]							#keys in the gallery, the template is calculated only if not alredy stored
 	#random.shuffle(d_keys)
-	test_set = d_keys[:25]				#keys to be tested, the template will be calculated anyway
-	test_set = test_set + d_keys[300:325]
+	test_set = d_keys[:5]				#keys to be tested, the template will be calculated anyway
+	test_set = test_set + d_keys[300:305]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
