@@ -9,28 +9,41 @@ def main():
 		epilog="The dataset must be created as such: \"dataset/xxx/xxx_y.bmp\" where \'x\' is the subject's number and \'y\' the numbered photo."
 	)
     
-    parser.add_argument('-p', '--path', dest="path", type=str, default="CASIA-FaceV5", help="Folder where iris images are saved")
-    parser.add_argument('-td', '--test-dataset', dest="testset", default="test.json", help="File that holds the test portion of the model")
+    parser.add_argument('-dp', '--dataset-path', dest="dataset_path", type=str, default="CASIA-FaceV5", help="Path to the folder where the face images are saved")
+    parser.add_argument('-pp', '--probe-path', dest="probe_path", type=str, default="probe.json", help="Path to the probe json file created in training")
+    parser.add_argument('-up', '--unknown-path', dest='unknown_path', type=str, default='unknown.json', help="Path to the unkown json file created in training")
+    parser.add_argument('-nu', '--no-unknown', dest="no_unknown", action='store_true', default=False, help="Use if you don't have any unknown subject to test. If this flag is set, \'unknown path\' will be ignored")
+
+
     arguments = parser.parse_args()
 
-    if not os.path.exists(arguments.path):
-        print("Path folder not found.")
+    if not os.path.exists(arguments.dataset_path):
+        print("Images folder not found, path invalid")
         exit(-1)
     
-    if not os.path.exists(arguments.testset):
-        print("Test dataset representation could not be found")
+    if not os.path.exists(arguments.probe_path):
+        print("Probe dataset representation could not be found, path invalid")
         exit(-1)
+    
+    if not os.path.exists(arguments.unknown_path) and not arguments.no_unknown:
+        print("Unknown dataset representation could not be found, however \'no unknown\' has not been set.")
+        _ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
+        if _ != '': exit(-1)
 
     if not os.path.exists('Trainer.yml'):
-        print("Please proceed to train the model first")
+        print("Model \'Trainer.yml\' not found in its default path. Have you trained the model?")
         exit(-1)
     
-    with open(arguments.testset) as f:
-        testset = json.load(f) 
-
     if not os.path.exists("haarcascade_frontalface_default.xml"):
         content = requests.get("https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml")
         open("haarcascade_frontalface_default.xml", "wb").write(content.content)
+    
+    with open(arguments.probe_path, 'r') as f:
+        probe = json.load(f)
+    
+    if not arguments.no_unknown:
+        with open(arguments.unknown_path, 'r') as f:
+            unknown = json.load(f)
 
     facedetect = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
     recognizer = cv2.face.LBPHFaceRecognizer_create()
@@ -38,15 +51,25 @@ def main():
 
     TP = 0; TN = 0; FP = 0; FN = 0
 
-    for subject in testset:
-        for image in testset[subject]:
-            faceImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            faces = face_training.detectMultiScale(faceImage, 1.3, 5)
+    for subject in probe:
+        for image in probe[subject]:
+            faceImage = cv2.imread(f'{arguments.dataset_path}/{subject}/{image}', cv2.IMREAD_GRAYSCALE)
+            faces = facedetect.detectMultiScale(faceImage, 1.3, 5)
 
             for (x,y,w,h) in faces:
                 serial, conf = recognizer.predict(faceImage[y:y+h, x:x+w])
 
-                print(serial, conf)
+                if str(serial) == subject: print(serial, subject, conf)
+    
+    for subject in unknown:
+        for image in unknown[subject]:
+            faceImage = cv2.imread(f'{arguments.dataset_path}/{subject}/{image}', cv2.IMREAD_GRAYSCALE)
+            faces = facedetect.detectMultiScale(faceImage, 1.3, 5)
+
+            for (x,y,w,h) in faces:
+                serial, conf = recognizer.predict(faceImage[y:y+h, x:x+w])
+
+                print(conf)
 
 
 #                if conf>60:

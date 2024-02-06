@@ -10,5 +10,6 @@ haarcascade_frontalface_default.xml
 Trainer.yml
 
 # Current files
-train.json
-test.json
+gallery.json
+probe.json
+unknown.json

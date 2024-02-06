@@ -64,8 +64,7 @@ def main():
 	elif arguments.processcount > multiprocessing.cpu_count():
 		print("The number of process given is more than the number of cpu cores. This may cause the system to slow down.")
 		_ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
-		if _ != '' or _ == 'q':
-			exit(-1)
+		if _ != '': exit(-1)
 
 	pool = multiprocessing.Pool(
     processes=arguments.processcount,
