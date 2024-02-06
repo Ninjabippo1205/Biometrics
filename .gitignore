@@ -8,3 +8,7 @@ __pycache__/
 # Large files
 haarcascade_frontalface_default.xml
 Trainer.yml
+
+# Current files
+train.json
+test.json
