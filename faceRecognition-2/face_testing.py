@@ -1,16 +1,29 @@
-import cv2 
-import time
-import trainingdemo
+import cv2, time, os
+import json, requests
+import face_training
 
-video=cv2.VideoCapture(0)
-facedetect = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-recognizer = cv2.face.LBPHFaceRecognizer_create()
-recognizer.read("Trainer.yml")
+def main():
+    if not os.path.exists('Trainer.yml'):
+        print("Please proceed to train the model first")
+        exit(-1)
+    
+    if not os.path.exists('dataset.json'):
+        with open('dataset.json') as f:
+            dataset = json.load(f) 
+
+    if not os.path.exists("haarcascade_frontalface_default.xml"):
+        content = requests.get("https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml")
+        open("haarcascade_frontalface_default.xml", "wb").write(content.content)
+
+    facedetect = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer.read("Trainer.yml")
+
+
 
 while True:
-    ret,frame=video.read()
     gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = facedetect.detectMultiScale(gray, 1.3, 5)
+    faces = face_training.detectMultiScale(gray, 1.3, 5)
     for (x,y,w,h) in faces:
         serial, conf = recognizer.predict(gray[y:y+h, x:x+w])
         if conf>60:
@@ -33,5 +46,4 @@ while True:
     if k==ord("q"):
         break
 
-video.release()
 cv2.destroyAllWindows()

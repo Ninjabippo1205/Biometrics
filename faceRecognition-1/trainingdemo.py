@@ -1,10 +1,9 @@
 import cv2
 import numpy as np
-from PIL import Image
 import os
 
 recognizer = cv2.face.LBPHFaceRecognizer_create()
-path="faceRecognition\\datasets"
+path="datasets"
 names={}
 
 def getImageID(path):
