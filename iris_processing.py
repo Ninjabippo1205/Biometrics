@@ -90,7 +90,14 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	unwrapped_img = np.zeros((radii.size, angles.size))
 	for i in range(radii.size):
 		for j in range(angles.size):
-			unwrapped_img[i, j] = img[int(center[1] + radii[i]*np.sin(angles[j])), int(center[0] + radii[i]*np.cos(angles[j]))]
+			#l'errore è qua, nella parte int(center[1] + radii[i]*np.sin(angles[j]))
+			x = int(center[1] + radii[i]*np.sin(angles[j]))
+			y = int(center[0] + radii[i]*np.cos(angles[j]))
+			if (x >= 480):
+				x = 479
+			if y >= 640:
+				y = 639
+			unwrapped_img[i, j] = img[x, y]
 	return unwrapped_img
 
 def eyelid_mask_after_normalization(img):
@@ -187,11 +194,11 @@ def getTemplate(image):
 	normalized_iris = normalizeWithPolarCoordinates(iris_without_eyelid_and_eyelashes_before_normalization, iris_center, pupil_radius, iris_radius)
 	normalized_iris = normalized_iris.astype('uint8')
 
-	eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
-	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
+	#eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
+	#final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
 			 
 	filters = build_filters()
-	filitered_iris = process(final_iris, filters)
+	filitered_iris = process(normalized_iris, filters) #process(final_iris, filters)
 
 	return filitered_iris
 
@@ -213,7 +220,7 @@ def build_filters():
 		kern = cv2.getGaborKernel(**params)
 		kern /= 1.5 * kern.sum()
 		filters.append((kern, params))
-	
+
 	return filters
 
 # Processed image save functions
@@ -226,15 +233,14 @@ def saveDataset(dataset, images_folder):
 		if not os.path.exists(f'template/{object}'): os.mkdir(f'template/{object}')
 		for image in dataset[object]:
 			if os.path.exists(f'template/{object}/{image[:-4]}.npy'): continue
-
 			template = getTemplate(cv2.imread(f"{images_folder}/{object}/{image}")).flatten()
 			np.save(f"template/{object}/{image[:-4]}", template)
-	
+
 def saveTemplate(template, path):
 	items = path.split('/')
 
 	if not os.path.exists(items[0]): os.mkdir(items[0])
 	if not os.path.exists(f'{items[0]}/{items[1]}'): os.mkdir(f'{items[0]}/{items[1]}')
 	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
-	
+
 	np.save(path, template)
