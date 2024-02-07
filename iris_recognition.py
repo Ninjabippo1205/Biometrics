@@ -6,6 +6,7 @@ import iris_processing as IrisProcessing
 import cv2, os, random, multiprocessing, argparse
 import numpy as np
 from itertools import islice
+import matplotlib.pyplot as plt
 
 def createDatasetfromPath(path):
 	dataset = {}
@@ -70,9 +71,7 @@ def main():
     processes=arguments.processcount,
     #maxtasksperchild = 1 # Keep commented for maximum performace
   )
-
-	threshold = 12000
-
+	
 	# Create dataset
 	dataset = pool.apply(func=createDatasetfromPath, args=(arguments.path,))
 	
@@ -89,14 +88,17 @@ def main():
 	# Saving all templates using allocated processes.
 	pool.apply_async(func=IrisProcessing.saveDataset, args=(dataset, arguments.path,))
 
-	d_keys = list(dataset.keys()); random.shuffle(d_keys)
+	d_keys = list(dataset.keys());# random.shuffle(d_keys)		#all keys of dataset
 	
 	# Get a test subject based on the shuffled keys
-	test_subject = d_keys[random.randint(0, len(d_keys)-1)]
-	probe = dataset[test_subject] # Probe is a list of images
+	#test_subject = d_keys[random.randint(0, len(d_keys)-1)]
+	#probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:15]
+	gallery_subjects = d_keys[:200]							#keys in the gallery, the template is calculated only if not alredy stored
+	#random.shuffle(d_keys)
+	test_set = d_keys[:25]				#keys to be tested, the template will be calculated anyway
+	test_set = test_set + d_keys[300:325]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
@@ -107,59 +109,120 @@ def main():
 	gallery = {} # Gallery is a subset of the dictionary "dataset"
 	for x in gallery_subjects: gallery[x] = dataset[x]
 
-	# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
-	#									(yes|no),				(no|no),						(yes|yes)
-	FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(d_keys)
-	DI = np.zeros(len(gallery_subjects*40)-1)
+	DIR_List = []
+	FRR_List = []
+	FAR_List = []
+	GRR_List = []
+	GAR_List = []
+	thresholds = [4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]
 
-	## image matching ##
-	for test_subject in d_keys:
-		probe = dataset[test_subject][0]
-	
-		find = False
-		subject_matched, minimum_distance, matched_list = iris_identification.image_matching(arguments.path, test_subject, probe,
-																																											   gallery, gallery_subjects, threshold, pool)
+	for threshold in thresholds:
+		print(f"-----------------------STARTING EVALUATION WITH THRESHOLD {threshold}-----------------------")
+		# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
+		#									(yes|no),				(no|no),						(yes|yes)
+		FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(d_keys)
+		DI = np.zeros(len(gallery_subjects*40)-1)
 
-		if(minimum_distance < threshold):
-			if(subject_matched == test_subject):
-				DI[0] = DI[0] + 1
-				for m in matched_list.keys():
-					if m != test_subject:
-						FA += 1
-						find = True
-						break
-
-				if find == False:
-					GR += 1	
-			else:
-				i = 0
-				for m in matched_list.keys():
-					if m == test_subject and i != 0:
-						DI[i] += 1
-						break
-
-					i += 1
-				FA += 1
-				
-
-			print(f"The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects}")
-			os.system(f"echo The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects} >> result.txt")
-		else:
-			GR = GR + 1
-			print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects}")
-			os.system(f"echo Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects} >> result.txt")
-
+		## image matching ##
+		#for test_subject in d_keys:
+		for test_subject in test_set:
+			probe = dataset[test_subject][0]
 		
-	DIR = np.zeros(len(gallery_subjects)-1)
-	DIR[0]= DI[0]/TG
-	FRR = 1 - DIR[0]
-	FAR = FA / TI
-	GRR = GR / TI
+			find = False
+			subject_matched, minimum_distance, matched_list = iris_identification.image_matching(arguments.path, test_subject, probe, gallery, gallery_subjects, threshold, pool)
 
-	for i in range (1, len(gallery_subjects)-1):
-		DIR[i]= DI[i]/(TG+ DIR[i-1])
+			if(minimum_distance < threshold):
+				if(subject_matched == test_subject):
+					DI[0] = DI[0] + 1
+					for m in matched_list.keys():
+						if m != test_subject:
+							FA += 1
+							find = True
+							break
 
-	print("performance evaluation:", DIR, FRR, FAR, GRR)
+					if find == False:
+						GR += 1	
+				else:
+					i = 0
+					for m in matched_list.keys():
+						if m == test_subject and i != 0:
+							DI[i] += 1
+							break
+
+						i += 1
+					FA += 1
+					
+
+				print(f"The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects}")
+				os.system(f"echo The function was given {test_subject} to test. It has matched {subject_matched} with minimum distance {minimum_distance}. The gallery contained {test_subject}? {test_subject in gallery_subjects} >> result.txt")
+			else:
+				GR = GR + 1
+				print(f"Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects}")
+				os.system(f"echo Test subject not found! The function was given {test_subject}. The minimum distance found is: {minimum_distance} with {subject_matched}. Does the gallery contain the subject? {test_subject in gallery_subjects} >> result.txt")
+
+		#pool.close()
+			
+		DIR = np.zeros(len(gallery_subjects)-1)
+		DIR[0]= DI[0]/TG
+		FRR = 1 - DIR[0]
+		FAR = FA / TI
+		GRR = 1 - FAR
+		GAR = 1- FRR
+
+		for i in range (1, len(gallery_subjects)-1):
+			DIR[i]= DI[i]/(TG+ DIR[i-1])
+
+		DIR_List.append(DIR[0])
+		FRR_List.append(FRR)
+		FAR_List.append(FAR)
+		GRR_List.append(GRR)
+		GAR_List.append(GAR)
+
+
+		print()
+		print("------------------------------Start performance evaluation------------------------------")
+		print("DIR-(Detect Identification Rate) is the probability that the subject is identified at rank i")
+		k = 10 #len(DIR)
+		for i in range(k):
+			print(f"\tProbability that the subject is identified at rank {i+1} is --> {DIR[i]}")
+		print("")
+		print("FRR-(False Rejection Rate) is the probability that a genuine subject is wrongly rejected")
+		print(f"\tFRR is --> {FRR}")
+		print("")
+		print("FAR-(False Acceptance Rate) is the probability that an impostor is wrongly accepted")
+		print(f"\tFAR is --> {FAR}")
+		print("")
+		print("GRR-(Good Rejection Rate) is the probability that an impostor is correctly rejected")
+		print(f"\tGRR is --> {GRR}")
+		print("GAR-(Genuine Acceptance Rate) is the probability that a genuine subject is correctly accepted")
+		print(f"\tGAR is --> {GAR}")
+		print("------------------------------Stop performance evaluation------------------------------")
+	pool.close()
+	print("DIR_List: ",DIR_List)
+	print("FRR_List: ",FRR_List)
+	print("FAR_List: ",FAR_List)
+	print("GRR_List: ",GRR_List)
+	print("GAR_List: ",GAR_List)
+
+	plt.figure(1)
+	plt.plot(thresholds, FRR_List)
+	plt.title('FRR variation based on threshold values')
+	plt.xlabel('Threshold')
+	plt.ylabel('FRR')
+
+	plt.figure(2)
+	plt.plot(thresholds, FAR_List)
+	plt.title('FAR variation based on threshold values')
+	plt.xlabel('Threshold')
+	plt.ylabel('FAR')
+
+	plt.figure(3)
+	plt.plot(thresholds, DIR_List)
+	plt.title('DIR variation based on threshold values')
+	plt.xlabel('Threshold')
+	plt.ylabel('DIR')
+
+	plt.show()
 
 if __name__ == "__main__":
 	main()
