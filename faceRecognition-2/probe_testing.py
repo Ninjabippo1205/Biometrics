@@ -47,53 +47,5 @@ def main():
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read("Trainer.yml")
 
-    TP = 0; TN = 0; FP = 0; FN = 0
-
-    maxvalue = 0
-    max = (0, 0)
-
-    for x in range(11, 20):
-        for y in range(1, 10):
-            sum = 0
-
-            for subject in probe:
-                for image in probe[subject]:
-                    faceImage = cv2.imread(f'{arguments.dataset_path}/{subject}/{image}', cv2.IMREAD_GRAYSCALE)
-                    faces = facedetect.detectMultiScale(faceImage, x/10, y)
-
-                    for (x,y,w,h) in faces:
-                        serial, conf = recognizer.predict(faceImage[y:y+h, x:x+w])
-
-
-                        if str(serial) == subject: sum += 1
-            if sum > maxvalue:
-                maxvalue = sum
-                max = (x/10, y)
-        print(maxvalue)
-    
-    print(f"Finished. Max correct is {maxvalue} with values {max} ")
-
-    for subject in unknown:
-        for image in unknown[subject]:
-            faceImage = cv2.imread(f'{arguments.dataset_path}/{subject}/{image}', cv2.IMREAD_GRAYSCALE)
-            faces = facedetect.detectMultiScale(faceImage, 1.3, 5)
-
-            for (x,y,w,h) in faces:
-                serial, conf = recognizer.predict(faceImage[y:y+h, x:x+w])
-
-                print(conf)
-
-
-#                if conf>60:
-#                    cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
-#                    cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
-#                    cv2.rectangle(frame,(x,y-40),(x+w,y),(255,0,0),-1)
-#                    cv2.putText(frame, trainingdemo.names[serial], (x, y-10),cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
-#                else:
-#                    cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
-#                    cv2.rectangle(frame,(x,y),(x+w,y+h),(50,50,255),2)
-#                    cv2.rectangle(frame,(x,y-40),(x+w,y),(50,50,255),-1)
-#                    cv2.putText(frame, "Unknown", (x, y-10),cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
-                
 if __name__ == '__main__':
     main()
