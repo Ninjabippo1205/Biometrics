@@ -1,6 +1,4 @@
-import cv2 
-import time
-import trainingdemo
+import cv2, time, trainingdemo
 
 video=cv2.VideoCapture(0)
 facedetect = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
