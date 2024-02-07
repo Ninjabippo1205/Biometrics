@@ -3570,3 +3570,7 @@ The function was given 084/R to test. It has matched 004/L with minimum distance
 The function was given 328/L to test. It has matched 004/L with minimum distance 11504.378818519495. The gallery contained 328/L? False 
 The function was given 282/R to test. It has matched 003/R with minimum distance 19150.592706232357. The gallery contained 282/R? False 
 Test subject not found! The function was given 038/L. The minimum distance found is: 21004.189225009377 with 005/R. Does the gallery contain the subject? False 
+Test subject not found! The function was given 001/L. The minimum distance found is: 17378.084531961515 with 008/L. Does the gallery contain the subject? True 
+Test subject not found! The function was given 001/R. The minimum distance found is: 15691.7540765843 with 008/R. Does the gallery contain the subject? True 
+Test subject not found! The function was given 002/L. The minimum distance found is: 16295.012150962024 with 008/R. Does the gallery contain the subject? True 
+Test subject not found! The function was given 002/R. The minimum distance found is: 15117.726350215498 with 008/L. Does the gallery contain the subject? True 
