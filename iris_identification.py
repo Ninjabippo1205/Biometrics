@@ -18,9 +18,9 @@ def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image
             galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
             IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
 
-        galleryimage_normalized = (galleryimage - np.mean(galleryimage, axis=0)) / np.std(galleryimage, axis=0)
-        probeimage_normalized = (probeimage - np.mean(probeimage, axis=0)) / np.std(probeimage, axis=0)
-        distances.append(scipydistance.euclidean(probeimage_normalized, galleryimage_normalized))
+        #galleryimage_normalized = (galleryimage - np.mean(galleryimage, axis=0)) / np.std(galleryimage, axis=0)
+        #probeimage_normalized = (probeimage - np.mean(probeimage, axis=0)) / np.std(probeimage, axis=0)
+        distances.append(scipydistance.euclidean(probeimage, galleryimage))
 
     return distances  # Return distances instead of putting it in a queue
 
@@ -31,7 +31,7 @@ def image_matching(path, test_subject, probe, gallery, gallery_subjects, thresho
 
     # Getting template for probe.
     probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-    probeimage = IrisProcessing.getTemplate(probeimage)#.flatten()
+    probeimage = IrisProcessing.getTemplate(probeimage).flatten()
 
     # Creating args
     args = []

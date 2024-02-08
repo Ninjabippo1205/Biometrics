@@ -1,6 +1,7 @@
 import cv2, os, numpy as np
 import pywt
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
 
 def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
@@ -40,20 +41,6 @@ def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
 	img = cv2.bitwise_and(img, mask)
 	return img
 
-def eyelashes_mask(eye_image):
-	# Apply Gaussian blur to reduce noise
-	blurred = cv2.GaussianBlur(eye_image, (5, 5), 0)
-	
-	# Perform adaptive thresholding to create a binary mask
-	_, binary_mask = cv2.threshold(blurred, 75, 400, cv2.THRESH_BINARY)
-	
-	# Perform morphological operations to close small gaps in the binary mask
-	kernel = np.ones((5, 5), np.uint8)
-	closed_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
-	
-	# Use the inverse of the eye mask to segment the eyelashes and eyelid
-	return closed_mask
-
 def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	img = image.copy()
 	# Crea una griglia di angoli e raggi
@@ -73,7 +60,7 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 			unwrapped_img[i, j] = img[x, y]
 	return unwrapped_img
 
-def eyelid_mask_after_normalization(img):
+def eyelid_and_eyelashes_mask_after_normalization(img):
 	#cv2.imshow("img", img)
 	mask = np.zeros_like(img)
 	mask[:,:] = 255
@@ -99,29 +86,32 @@ def getTemplate(image):
 	iris_radius = int(pupil_radius + 70)	
 	iris_center = pupil_center
 
-	lashes_mask = eyelashes_mask(frame.copy())
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
 	
-	# Adding eyelashes mask to image and normalizing
-	normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
+	normalized_iris = normalizeWithPolarCoordinates(partial_iris, iris_center, pupil_radius, iris_radius)
 	normalized_iris = normalized_iris.astype('uint8')
 
-	eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
+	eyelid_mask_ = eyelid_and_eyelashes_mask_after_normalization(normalized_iris)
 	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
-			 
-	#cv2.imshow("final_iris", final_iris)
-
 
 	#filters = build_filters()
 	#filitered_iris = process(final_iris, filters) #process(final_iris, filters)
 
-	features = feature_extraction(final_iris)
-
 	#cv2.imshow("filtered_iris", filitered_iris)
-	#key = cv2.waitKey(0)
-	#if key == 27 or key == 1048603:
-	#	cv2.destroyAllWindows()
-	return features
+	#return features
+
+	#return feature_extraction(final_iris)
+	
+	key = cv2.waitKey(0)
+	if key == 27 or key == 1048603:
+		cv2.destroyAllWindows()
+	return feature_extraction_pca(final_iris)
+
+def feature_extraction_pca(img):
+	pca = PCA(n_components=2)
+	pca.fit(img)
+	pca_features = pca.transform(img)
+	return pca_features
 
 def feature_extraction(img):
 	c = pywt.wavedec2(img, 'db2', mode='periodization', level=3)

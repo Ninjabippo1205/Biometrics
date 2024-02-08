@@ -97,11 +97,11 @@ def main():
 	#probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:300]		#max 395						#keys in the gallery, the template is calculated only if not alredy stored
+	gallery_subjects = d_keys[:100]		#max 395						#keys in the gallery, the template is calculated only if not alredy stored
 	#random.shuffle(d_keys)
-	test_set = d_keys[:25]									#keys to be tested, the template will be calculated anyway
+	test_set = d_keys[:20]									#keys to be tested, the template will be calculated anyway
 	#random.shuffle(d_keys)
-	test_set = test_set + d_keys[300:325]
+	#test_set = test_set + d_keys[300:310]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
@@ -117,11 +117,10 @@ def main():
 	FAR_List = []
 	GRR_List = []
 	GAR_List = []
-	#thresholds = [4000, 8000, 12000, 16000, 20000, 24000, 28000, 32000, 36000, 40000, 44000, 48000, 52000, 56000, 60000]#[4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]
-	#thresholds = [10, 15, 20, 25, 30, 35, 40]
-	thresholds = [100, 125, 150, 175, 200, 225, 250]
 
-	for threshold in thresholds:
+	thresholds = []
+	for threshold in range(3500, 9000 ,100):
+		thresholds.append(threshold)
 		print(f"-----------------------STARTING EVALUATION WITH THRESHOLD {threshold}-----------------------")
 		# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
 		#									(yes|no),				(no|no),						(yes|yes)
@@ -137,10 +136,10 @@ def main():
 			subject_matched, minimum_distance, matched_list = iris_identification.image_matching(arguments.path, test_subject, probe, gallery, gallery_subjects, threshold, pool)
 
 			if(minimum_distance < threshold):
-				if(subject_matched == test_subject):
+				if subject_matched == test_subject or subject_matched == test_subject[:-1]+chr(158 - ord(test_subject[-1])):
 					DI[0] = DI[0] + 1
 					for m in matched_list.keys():
-						if m != test_subject:
+						if m != test_subject and m != test_subject[:-1]+chr(158 - ord(test_subject[-1])):
 							FA += 1
 							find = True
 							break
@@ -150,7 +149,7 @@ def main():
 				else:
 					i = 0
 					for m in matched_list.keys():
-						if m == test_subject and i != 0:
+						if m == test_subject or m == test_subject[:-1]+chr(158 - ord(test_subject[-1])) and i != 0:
 							DI[i] += 1
 							break
 
