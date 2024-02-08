@@ -1,11 +1,6 @@
 import cv2, os, numpy as np
-
-# Iris processing
-def drawCircle(img, id, center, radius_min, radius_max):
-	copy = img.copy()
-	copy = cv2.cvtColor(copy, cv2.COLOR_GRAY2RGB)
-	cv2.circle(copy, center, radius_min, (0, 165, 255), 2)
-	cv2.circle(copy, center, radius_max, (203, 192, 255), 2)
+import pywt
+from matplotlib import pyplot as plt
 
 def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
@@ -19,44 +14,22 @@ def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 def getPupil(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
-	pupil = None
+	max_radius = 0
+	max_center = (0,0)
 	for i in circles[0, :]:
 		centro = (i[0], i[1])
 		raggio = i[2]
-		cv2.circle(img, centro, raggio, (0, 255, 0), 2)
-		cv2.circle(img, centro, 2, (0, 0, 255), 3)
+		if raggio > max_radius:
+			max_radius = raggio
+			max_center = centro
+	return max_center, (max_radius-10)
 
-		pupil = np.zeros_like(image)
-		cv2.circle(pupil, centro, raggio, (255,255,255), -1)
-
-		return centro, raggio
-	return (0,0), 0
-
-def getIris(image, param1, param2, minDist, minRadius, maxRadius):
-	img = image.copy()
-	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
-	for i in circles[0, :]:
-		cv2.circle(img, (i[0], i[1]), i[2], (0, 255, 0), 2)
-		cv2.circle(img, (i[0], i[1]), 2, (0, 0, 255), 3)
-
-		return (i[0], i[1]), i[2]
-	return (0,0), 0
-
-def preProcessing_iris_image(img):
-	img = cv2.GaussianBlur(img, (27, 27), 0)
-	img = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 1) #15, 0.5
-	img = cv2.GaussianBlur(img, (27, 27), 0)
-	edges = cv2.Canny(img, 70, 120)#50,150
-	img = cv2.GaussianBlur(edges, (27, 27), 0)
-	return img
-
-def preProcessing_pupil_image(img, blur, threshold_value, sobel):
+def preProcessing_pupil_image(img, blur, threshold_value):
 	image = img.copy()
 	_, edges = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
-	sobelx = cv2.Sobel(edges, cv2.CV_64F, 1, 0, ksize=sobel)
-	sobely = cv2.Sobel(edges, cv2.CV_64F, 0, 1, ksize=sobel)
-	sobelmagnitude_norm = np.uint8(cv2.normalize(np.sqrt(sobelx**2 + sobely**2), None, 0, 255, cv2.NORM_MINMAX))
-	res = cv2.GaussianBlur(sobelmagnitude_norm, blur, 0)
+	kernel = np.ones((3,3),np.uint8)
+	img_eroded = cv2.erode(edges, kernel, iterations = 7)
+	res = cv2.GaussianBlur(img_eroded, blur, 0)
 	return res
 
 def not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame):
@@ -93,114 +66,73 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 			#l'errore è qua, nella parte int(center[1] + radii[i]*np.sin(angles[j]))
 			x = int(center[1] + radii[i]*np.sin(angles[j]))
 			y = int(center[0] + radii[i]*np.cos(angles[j]))
-			if (x >= 480):
-				x = 479
-			if y >= 640:
-				y = 639
+			if (x >= 280):
+				x = 279
+			if y >= 320:
+				y = 319
 			unwrapped_img[i, j] = img[x, y]
 	return unwrapped_img
 
 def eyelid_mask_after_normalization(img):
-	kernel = np.ones((8,8),np.uint8)
-	img_eroded = cv2.erode(img, kernel, iterations = 1)
-	contorni, hierarchy = cv2.findContours(img_eroded, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-	if len(contorni) == 0: return img
-	if hierarchy is not None:
-		contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
-	
-	max_area = max(cv2.contourArea(contorno) for contorno in contorni)
-	new = np.zeros_like(img)
-	for contorno in contorni:
-		area_contorno = cv2.contourArea(contorno)
-		if area_contorno < 1000:
-			continue
-		if area_contorno < max_area/6:
-			continue
-		cv2.drawContours(new, [contorno], -1, 255, -1)
-	return new
-
-def eyelid_mask_before_normalization(img, pupil_center, pupil_radius, iris_center, iris_radius):
-	blurred = cv2.GaussianBlur(img, (15, 15), 0) #21,21
+	#cv2.imshow("img", img)
+	mask = np.zeros_like(img)
+	mask[:,:] = 255
+	mean = cv2.mean(img)[0]
+	mask[img < (mean-40)] = 0	#140 (mean-50)
+	img_without_eyelasches = cv2.bitwise_and(img, img, mask=mask)
+	#cv2.imshow("img_without_eyelasches", img_without_eyelasches)
 
 	mask = np.zeros_like(img)
-	cv2.circle(mask, iris_center, iris_radius, (255,255,255), -1)
-	cv2.circle(mask, pupil_center, pupil_radius, (0,0,0), -1)
-	mean = cv2.mean(blurred, mask=mask)[0]
+	mask[:,:] = 255
+	mask[img_without_eyelasches > 230] = 0
+	mask = cv2.erode(mask, np.ones((3,3), np.uint8), iterations=1)
 
-	if mean > 120:
-		thresh = cv2.threshold(blurred, 0.43*mean, 255, cv2.THRESH_TOZERO)[1]
-		thresh = cv2.threshold(thresh, 1*mean, 255, cv2.THRESH_TOZERO_INV)[1]
-	elif mean > 100:
-		thresh = cv2.threshold(blurred, 0.7*mean, 255, cv2.THRESH_TOZERO)[1]
-		thresh = cv2.threshold(thresh, 1.35*mean, 255, cv2.THRESH_TOZERO_INV)[1]
-	elif mean > 80:
-		thresh = cv2.threshold(blurred, 0.66*mean, 255, cv2.THRESH_TOZERO)[1]
-		thresh = cv2.threshold(thresh, 1.36*mean, 255, cv2.THRESH_TOZERO_INV)[1]
-	else:
-		thresh = cv2.threshold(blurred, 0.5*mean, 255, cv2.THRESH_TOZERO)[1]
-		thresh = cv2.threshold(thresh, 1.4*mean, 255, cv2.THRESH_TOZERO_INV)[1]
-	
-	mask = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY)[1]
-	
-	contorni, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-	if len(contorni) == 0: return img
-	if hierarchy is not None:
-		contorni = [contour for contour, h in zip(contorni, hierarchy[0]) if h[3] == -1]
-	
-	new = np.zeros_like(img)
-
-	max_area = max(cv2.contourArea(contorno) for contorno in contorni)
-	c = 0
-	avg_color_contour = []
-	for contorno in contorni:
-		if cv2.contourArea(contorno) < max_area/4:
-			continue
-		contour_mask = np.zeros_like(img)
-		cv2.drawContours(contour_mask, [contorno], -1, 255, 2)
-		cv2.drawContours(new, [contorno], -1, 255, 2)
-		c = c+1
-		avg_color_contour.append([cv2.mean(img, mask=contour_mask)[0], contorno])
-
-	contorno = sorted(avg_color_contour, key=lambda x: x[0], reverse=True)[0][1]
-	res = np.zeros_like(img)
-	cv2.drawContours(res, [contorno], -1, 255, -1)
-	ris = cv2.bitwise_and(res, mask)
-	return ris
-
-def check_if_all_black(partial_iris, lashes_mask):
-	ris = cv2.bitwise_and(partial_iris, lashes_mask)
-	if np.min(ris) < 1: return partial_iris
-	return ris
+	img_without_eyebrows_and_eyelasches = cv2.bitwise_and(img_without_eyelasches, img_without_eyelasches, mask=mask)
+	#cv2.imshow("img_without_eyebrows_and_eyelasches", img_without_eyebrows_and_eyelasches)
+	return img_without_eyebrows_and_eyelasches
 
 def getTemplate(image):
 	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=60, blur=(15,15), sobel=3)
+	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=90, blur=(15,15))
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 
-	preProcessed_image_for_iris = preProcessing_iris_image(frame)
-	min_radius = int(pupil_radius + (0.3*pupil_radius))
-	max_radius = int(pupil_radius + (0.2*pupil_radius) + 100)	
-	iris_center, iris_radius = getIris(preProcessed_image_for_iris, param1=30, param2=400, minDist=0.01, minRadius=min_radius, maxRadius=max_radius)
+	iris_radius = int(pupil_radius + 70)	
+	iris_center = pupil_center
 
 	lashes_mask = eyelashes_mask(frame.copy())
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
-
-	p_iris = eyelid_mask_before_normalization(partial_iris, pupil_center, pupil_radius, iris_center, iris_radius)
-	partial_iris = cv2.bitwise_and(partial_iris, partial_iris, mask=p_iris)
-	iris_without_eyelid_and_eyelashes_before_normalization = check_if_all_black(partial_iris, lashes_mask)
-
+	
 	# Adding eyelashes mask to image and normalizing
-	normalized_iris = normalizeWithPolarCoordinates(iris_without_eyelid_and_eyelashes_before_normalization, iris_center, pupil_radius, iris_radius)
+	normalized_iris = normalizeWithPolarCoordinates(cv2.bitwise_and(partial_iris, lashes_mask), iris_center, pupil_radius, iris_radius)
 	normalized_iris = normalized_iris.astype('uint8')
 
-	#eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
-	#final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
+	eyelid_mask_ = eyelid_mask_after_normalization(normalized_iris)
+	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
 			 
-	filters = build_filters()
-	filitered_iris = process(normalized_iris, filters) #process(final_iris, filters)
+	#cv2.imshow("final_iris", final_iris)
 
-	return filitered_iris
+
+	#filters = build_filters()
+	#filitered_iris = process(final_iris, filters) #process(final_iris, filters)
+
+	features = feature_extraction(final_iris)
+
+	#cv2.imshow("filtered_iris", filitered_iris)
+	#key = cv2.waitKey(0)
+	#if key == 27 or key == 1048603:
+	#	cv2.destroyAllWindows()
+	return features
+
+def feature_extraction(img):
+	c = pywt.wavedec2(img, 'db2', mode='periodization', level=3)
+	c[0] /= np.abs(c[0]).max()
+	for detail_level in range(3):
+		c[detail_level + 1] = [d/np.abs(d).max() for d in c[detail_level + 1]]
+	#arr, slices = pywt.coeffs_to_array(c)
+	#plt.imshow(arr, cmap=plt.cm.gray)
+	#plt.show()
+	res = np.concatenate([np.ndarray.flatten(c1) for sublist in c for c1 in sublist])
+	return res
 
 def process(img, filters):
 	accum = np.zeros_like(img)
@@ -216,7 +148,7 @@ def build_filters():
 	filters = []
 	ksize = 31
 	for theta in np.arange(0, np.pi, np.pi/16):
-		params = {'ksize' : (ksize, ksize), 'sigma' : 1.0, 'theta' : theta, 'lambd' : 15.0, 'gamma' : 2, 'psi' : 0, 'ktype' : cv2.CV_32F}
+		params = {'ksize' : (ksize, ksize), 'sigma' : 3.0, 'theta' : theta, 'lambd' : 10.0, 'gamma' : 0.2, 'psi' : 0, 'ktype' : cv2.CV_32F}
 		kern = cv2.getGaborKernel(**params)
 		kern /= 1.5 * kern.sum()
 		filters.append((kern, params))

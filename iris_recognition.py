@@ -89,17 +89,19 @@ def main():
 	# Saving all templates using allocated processes.
 	pool.apply_async(func=IrisProcessing.saveDataset, args=(dataset, arguments.path,))
 
-	d_keys = list(dataset.keys());# random.shuffle(d_keys)		#all keys of dataset
+	d_keys = list(dataset.keys())
+	# random.shuffle(d_keys)
 	
 	# Get a test subject based on the shuffled keys
 	#test_subject = d_keys[random.randint(0, len(d_keys)-1)]
 	#probe = dataset[test_subject] # Probe is a list of images
 
 	# Using the first 20 elements to use as gallery
-	gallery_subjects = d_keys[:20]							#keys in the gallery, the template is calculated only if not alredy stored
+	gallery_subjects = d_keys[:300]		#max 395						#keys in the gallery, the template is calculated only if not alredy stored
 	#random.shuffle(d_keys)
-	test_set = d_keys[:5]				#keys to be tested, the template will be calculated anyway
-	test_set = test_set + d_keys[300:305]
+	test_set = d_keys[:25]									#keys to be tested, the template will be calculated anyway
+	#random.shuffle(d_keys)
+	test_set = test_set + d_keys[300:325]
 	# Checking that there is both left and right eye for every subject
 	for eye in gallery_subjects:
 		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
@@ -115,13 +117,15 @@ def main():
 	FAR_List = []
 	GRR_List = []
 	GAR_List = []
-	thresholds = [4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]
+	#thresholds = [4000, 8000, 12000, 16000, 20000, 24000, 28000, 32000, 36000, 40000, 44000, 48000, 52000, 56000, 60000]#[4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000]
+	#thresholds = [10, 15, 20, 25, 30, 35, 40]
+	thresholds = [100, 125, 150, 175, 200, 225, 250]
 
 	for threshold in thresholds:
 		print(f"-----------------------STARTING EVALUATION WITH THRESHOLD {threshold}-----------------------")
 		# Calculating False Acceptance, Good Rejection, Detect Indentification, Total Genuine and Total Impostor
 		#									(yes|no),				(no|no),						(yes|yes)
-		FA = 0; GR = 0; TG =len(gallery_subjects); TI = len(d_keys)
+		FA = 0; GR = 0; TG =len(test_set); TI = len(test_set)
 		DI = np.zeros(len(gallery_subjects*40)-1)
 
 		## image matching ##
@@ -198,6 +202,7 @@ def main():
 		print("GAR-(Genuine Acceptance Rate) is the probability that a genuine subject is correctly accepted")
 		print(f"\tGAR is --> {GAR}")
 		print("------------------------------Stop performance evaluation------------------------------")
+
 	pool.close()
 	print("DIR_List: ",DIR_List)
 	print("FRR_List: ",FRR_List)
@@ -224,6 +229,45 @@ def main():
 	plt.ylabel('DIR')
 
 	plt.show()
+	return 0
+
+def main2():
+	dataset = createDatasetfromPath("CASIA-Iris-Interval")
+	d_keys = list(dataset.keys())
+	#random.shuffle(d_keys)	
+	gallery_subjects = d_keys[:60]
+	test_subjects = d_keys[:40]
+	# random.shuffle(d_keys)
+
+	for eye in gallery_subjects:
+		# 158 is ascii for L+R. By removing a letter, the other ascii number will pop up
+		other_eye = eye[:-1]+chr(158 - ord(eye[-1]))
+		if not other_eye in gallery_subjects and os.path.exists(f'"CASIA-Iris-Interval/"{other_eye}'): gallery_subjects.append(other_eye)
+
+	gallery = {} # Gallery is a subset of the dictionary "dataset"
+	for x in gallery_subjects: gallery[x] = dataset[x]
+
+	## image matching ##
+	#for test_subject in d_keys:
+	threshold = 8000
+	for test_subject in test_subjects:
+		print(test_subject)
+		for img in dataset[test_subject]:
+			#print(f"CASIA-Iris-Interval/{test_subject}/{img}")
+			res = IrisProcessing.getTemplate(cv2.imread(f"CASIA-Iris-Interval/{test_subject}/{img}"))
+		
+	return 0
+
+def main3():
+	# Itera su tutte le sottocartelle da 1 a 249
+	users = os.listdir("CASIA-Iris-Interval")
+	for user in users:
+		eyes = os.listdir(f"CASIA-Iris-Interval/{user}")
+		for eye in eyes:
+			images = os.listdir(f"CASIA-Iris-Interval/{user}/{eye}")
+			if len(images) == 0:
+				os.rmdir(f"CASIA-Iris-Interval/{user}/{eye}")
+				print(f"rimossa cartella {eye} dell'utente {user}")
 
 if __name__ == "__main__":
 	main()
