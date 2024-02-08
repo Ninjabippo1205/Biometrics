@@ -3,6 +3,10 @@ import os, requests, argparse
 
 
 def main():
+    # Moving inside folder
+    current_folder = os.path.realpath(__file__) 
+    os.chdir(current_folder[:current_folder.rfind('/')])
+
     parser = argparse.ArgumentParser(
 		prog="Data collcetion",
 		description="This program handles data collection and user enrollment for real-time face recognition",

@@ -26,7 +26,11 @@ def processDataset(path, gallery_percentage, unkown_percentage, no_unknown):
 
     return gallery, probe 
  
-def main(): 
+def main():
+    # Moving inside folder
+    current_folder = os.path.realpath(__file__) 
+    os.chdir(current_folder[:current_folder.rfind('/')])
+
     known_encodings = []
     known_names = []
 
@@ -36,7 +40,7 @@ def main():
 		epilog="The dataset must be created as such: \"dataset/xxx/xxx_y.bmp\" where \'x\' is the subject's number and \'y\' the numbered photo."
 	)
     
-    parser.add_argument('-p', '--path', dest="dataset_path", type=str, default="CASIA-FaceV5", help="Path to the folder where the face images are saved")
+    parser.add_argument('-p', '--path', dest="dataset_path", type=str, default="CASIA-FaceV5", help="Path to the folder where the face images are saved. Provide the path with the absolute rapresentation")
     parser.add_argument('-gp', '--gallery-percentage', dest="gallery_percentage", default="0.8", type=float, help="Percentage of images for chosen subjects that will be added to the gallery")
     parser.add_argument('-up', '--unkown-percentage', dest="unknown_percentage", default="0.2", type=float, help="Percentage of unkown subjects that are going to be tested" )
     parser.add_argument('-nu', '--no-unknown', dest="no_unknown", action='store_true', default=False, help="Use if you'd like to add all subjects in the gallery. If this flag is set, \'unknown percentage\' will be ignored")

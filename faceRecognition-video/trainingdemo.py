@@ -20,13 +20,18 @@ def getImageID(path, names):
 
 
 def main():
+    # Moving inside folder
+    current_folder = os.path.realpath(__file__) 
+    os.chdir(current_folder[:current_folder.rfind('/')])
+
     parser = argparse.ArgumentParser(
 		prog="Model training",
 		description="This program handles training for real-time face recognition base on already acquired data",
 		epilog="Given the amount of subjects, this program may take a while"
 	)
     
-    parser.add_argument('-p', '--path', dest="dataset_path", type=str, default="datasets", help="Path to the images acquired with \"datacollect.py\"")
+    parser.add_argument('-p', '--path', dest="dataset_path", type=str, default="datasets", help="Path to the images acquired with \"datacollect.py\". \
+                        Provide the path with the absolute rapresentation")
 
     arguments = parser.parse_args()
     

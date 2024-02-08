@@ -2,6 +2,10 @@ import cv2, time
 import os, requests, json
 
 def main():
+    # Moving inside folder
+    current_folder = os.path.realpath(__file__) 
+    os.chdir(current_folder[:current_folder.rfind('/')])
+
     # Requirements
     if not os.path.exists("haarcascade_frontalface_default.xml"):
         content = requests.get("https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml")
