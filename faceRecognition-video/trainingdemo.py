@@ -20,9 +20,15 @@ def getImageID(path, names):
 
 
 def main():
-    # Moving inside folder
-    current_folder = os.path.realpath(__file__) 
-    os.chdir(current_folder[:current_folder.rfind('/')])
+    # Moving inside folder (os dependent)
+    current_folder = os.path.realpath(__file__)
+    if os.name == 'nt': os.chdir(current_folder[:current_folder.rfind('\\')])
+    elif os.name == 'posix': os.chdir(current_folder[:current_folder.rfind('/')])
+    else:
+        print("This program hasn't been tested in the current enviroment. Downtime may happen.")
+        _ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
+        if _ != '': exit(-1)
+        os.chdir(current_folder[:current_folder.rfind('/')])
 
     parser = argparse.ArgumentParser(
 		prog="Model training",
