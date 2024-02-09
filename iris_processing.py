@@ -75,7 +75,6 @@ def eyelid_and_eyelashes_mask_after_normalization(img):
 
 def enhance_img(img):
 	return cv2.equalizeHist(img)
-	return img
 
 def getTemplate(image):
 	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
