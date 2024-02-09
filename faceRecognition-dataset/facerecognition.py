@@ -2,7 +2,7 @@ import cv2, os, random, argparse, multiprocessing, face_recognition
 import numpy as np 
 import matplotlib.pyplot as plt
  
-def processDataset(path, gallery_percentage, unkown_percentage, no_unknown): 
+def processDataset(path, gallery_percentage, unknown_percentage, no_unknown): 
     if not os.path.exists(path): 
         print("Dataset could not be loaded, please check folder location") 
         exit(-1) 
@@ -14,7 +14,7 @@ def processDataset(path, gallery_percentage, unkown_percentage, no_unknown):
 
     if not no_unknown:
         # Choosing unknown subjects at random
-        while len(probe) < int(len(subjects)*unkown_percentage): 
+        while len(probe) < int(len(subjects)*unknown_percentage): 
             item = random.randint(0, len(subjects)-1) 
             probe[subjects[item]] = os.listdir(f'{path}/{subjects[item]}') 
             subjects.remove(subjects[item]) 
@@ -37,18 +37,29 @@ def calculateImageEncoding(path, gallery, subject):
 
     return items
 
-def calculateParameters(path, gallery, probe, known_encodings, known_names, threshold):
-    DI = np.zeros(len(gallery)*len(list(gallery.keys())[0])); TG = len(probe); TI = len(probe)
+def calculateParameters(path, gallery, probe, known_encodings, known_names, threshold, unknown ):
+    subjects = os.listdir(path)
+    TI = 0
+    TG = 0
+
+    DI = np.zeros(len(gallery)*len(list(gallery.keys())[0])); 
     FA = 0; GR = 0 
+    FR=0
     counter = 0
 
-    for subject in probe:
+    #try:
+    for subject in probe:  
+
         for image in probe[subject]:
             res = face_recognition.face_encodings(cv2.imread(f"{path}/{subject}/{image}"))
             if len(res) == 0: continue
             break
-
+        
         if len(res) == 0: continue
+        if subject in known_names:
+            TG +=1
+        else:
+            TI +=1
         image_encoding = res[0]
         distances = face_recognition.face_distance(known_encodings, image_encoding)
         min_distance_index = distances.argmin()
@@ -56,28 +67,30 @@ def calculateParameters(path, gallery, probe, known_encodings, known_names, thre
         if distances[min_distance_index] < threshold:
             counter += 1
             name = known_names[min_distance_index]
-            find = False
-            if name == subject:
+            if subject not in known_names:
+                FA+=1
+            elif name == subject:
                 DI[0] += 1
+                i=0
                 for index in sorted_indices:
                     name_other = known_names[index]
-                    if (name_other != subject and distances[index] < threshold):
-                        FA += 1
-                        find = True
-                        break
-                if(find == False):
-                    GR += 1
+                    if (name_other == subject and distances[index] < threshold and min_distance_index != index):
+                        DI[i] += 1
+                    i+=1
             else:
                 j = 0
                 for index in sorted_indices:
                     other_name = known_names[index]
-                    if (other_name == subject and distances[index] < threshold and min_distance_index != index):
+                    if (other_name == subject and distances[index] < threshold ):
                         DI[j] += 1
                         break
                     j += 1
-                FA += 1
+                FR += 1
         else:
-            GR += 1
+            if subject in known_names:
+                FR+=1
+            else:
+                GR += 1
 
     DIR = np.zeros(counter-1) 
     DIR[0] = DI[0]/TG 
@@ -88,6 +101,10 @@ def calculateParameters(path, gallery, probe, known_encodings, known_names, thre
 
     for i in range (1, counter-1):
         DIR[i] = DI[i]/(TG + DIR[i-1])
+    
+    #except Exception: 
+    #    print("")
+
     return [DIR[0], FRR, FAR, GRR, GAR]
 
 def main():
@@ -175,11 +192,11 @@ def main():
     FAR_List = []
     GRR_List = []
     GAR_List = []
-    thresholds = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    thresholds = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
     args = []
     for t in thresholds:
-        args.append([arguments.dataset_path, gallery, probe, known_encodings, known_names, t])
+        args.append([arguments.dataset_path, gallery, probe, known_encodings, known_names, t, arguments.unknown_percentage])
 
     items = process_pool.starmap(func=calculateParameters, iterable=args)
   
@@ -213,13 +230,19 @@ def main():
     plt.title('FAR variation based on threshold values')
     plt.xlabel('Threshold')
     plt.ylabel('FAR')
-    
+
     plt.figure(3)
-    plt.plot(thresholds, DIR_List)
-    plt.title('DIR variation based on threshold values')
-    plt.xlabel('Threshold')
+    plt.plot(FAR_List, DIR_List)
+    plt.title('ROC: DIR variation based on FAR values')
+    plt.xlabel('FAR')
     plt.ylabel('DIR')
-    
+
+    plt.figure(4)
+    plt.plot(FAR_List, FRR_List)
+    plt.title('DET: FRR variation based on FAR values')
+    plt.xlabel('FAR')
+    plt.ylabel('FRR')
+
     plt.show()  
     
 if __name__ == '__main__': 
