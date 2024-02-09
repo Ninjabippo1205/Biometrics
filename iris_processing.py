@@ -61,22 +61,21 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	return unwrapped_img
 
 def eyelid_and_eyelashes_mask_after_normalization(img):
-	#cv2.imshow("img", img)
 	mask = np.zeros_like(img)
 	mask[:,:] = 255
 	mean = cv2.mean(img)[0]
-	mask[img < (mean-40)] = 0	#140 (mean-50)
-	img_without_eyelasches = cv2.bitwise_and(img, img, mask=mask)
-	#cv2.imshow("img_without_eyelasches", img_without_eyelasches)
+	mask[img < (mean-40)] = 0
 
-	mask = np.zeros_like(img)
-	mask[:,:] = 255
-	mask[img_without_eyelasches > 230] = 0
-	mask = cv2.erode(mask, np.ones((3,3), np.uint8), iterations=1)
+	mask2 = np.zeros_like(img)
+	mask2[:,:] = 255
+	mask2[img > 230] = 0
+	mask2 = cv2.erode(mask2, np.ones((3,3), np.uint8), iterations=1)
+	
+	return cv2.bitwise_and(mask, mask2)
 
-	img_without_eyebrows_and_eyelasches = cv2.bitwise_and(img_without_eyelasches, img_without_eyelasches, mask=mask)
-	#cv2.imshow("img_without_eyebrows_and_eyelasches", img_without_eyebrows_and_eyelasches)
-	return img_without_eyebrows_and_eyelasches
+def enhance_img(img):
+	return cv2.equalizeHist(img)
+	return img
 
 def getTemplate(image):
 	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -93,6 +92,8 @@ def getTemplate(image):
 
 	eyelid_mask_ = eyelid_and_eyelashes_mask_after_normalization(normalized_iris)
 	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
+	final_iris = enhance_img(final_iris)
+
 
 	#filters = build_filters()
 	#filitered_iris = process(final_iris, filters) #process(final_iris, filters)
