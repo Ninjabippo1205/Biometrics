@@ -17,13 +17,15 @@ def getPupil(image, param1, param2, minDist, minRadius, maxRadius):
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	max_radius = 0
 	max_center = (0,0)
+	print(len(circles))
 	for i in circles[0, :]:
 		centro = (i[0], i[1])
 		raggio = i[2]
 		if raggio > max_radius:
 			max_radius = raggio
 			max_center = centro
-	return max_center, (max_radius-10)
+	#return max_center, (max_radius-10)
+	return max_center, max_radius
 
 def preProcessing_pupil_image(img, blur, threshold_value):
 	image = img.copy()
@@ -45,7 +47,7 @@ def normalizeWithPolarCoordinates(image, center, pupil_radius, iris_radius):
 	img = image.copy()
 	# Crea una griglia di angoli e raggi
 	radii = np.linspace(pupil_radius, iris_radius, 100)  	# height proportional to radius difference
-	angles = np.arange(0, 2*np.pi, 2*np.pi/360)						# width proportional to iris circumference
+	angles = np.arange(0, 2*np.pi, 2*np.pi/400)						# width proportional to iris circumference
 
 	unwrapped_img = np.zeros((radii.size, angles.size))
 	for i in range(radii.size):
@@ -73,15 +75,12 @@ def eyelid_and_eyelashes_mask_after_normalization(img):
 	
 	return cv2.bitwise_and(mask, mask2)
 
-def enhance_img(img):
-	return cv2.equalizeHist(img)
-
 def getTemplate(image):
 	frame = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=90, blur=(15,15))
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 
-	iris_radius = int(pupil_radius + 70)	
+	iris_radius = int(pupil_radius + 45)	
 	iris_center = pupil_center
 
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
@@ -92,23 +91,51 @@ def getTemplate(image):
 	eyelid_mask_ = eyelid_and_eyelashes_mask_after_normalization(normalized_iris)
 	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
 	final_iris = enhance_img(final_iris)
+	cv2.imshow('final_iris', final_iris)
 
-
-	#filters = build_filters()
-	#filitered_iris = process(final_iris, filters) #process(final_iris, filters)
-
-	#cv2.imshow("filtered_iris", filitered_iris)
-	#return features
-
-	#return feature_extraction(final_iris)
-	
+	#lbp =  calculate_lbp(final_iris)
+	hist = calculate_histograms(final_iris)
 	key = cv2.waitKey(0)
-	if key == 27 or key == 1048603:
+	if key == 27:
 		cv2.destroyAllWindows()
-	return feature_extraction_pca(final_iris)
+	return hist
+	#return feature_extraction_pca(final_iris)
+
+def calculate_histograms(img):
+	n, m = 20, 1
+	h, w = img.shape
+	cell_h, cell_w = h // n, w // m
+	histograms = []
+	for i in range(n):
+		for j in range(m):
+			cell = img[i*cell_h:(i+1)*cell_h, j*cell_w:(j+1)*cell_w]
+			cell = calculate_lbp(cell)
+			hist = cv2.calcHist([cell], [0], None, [256], [0, 256])
+			for k in hist:
+				histograms.append(k[0])
+	return histograms
+
+def enhance_img(img):
+	return cv2.equalizeHist(img)
+
+def calculate_lbp(img, P=8, R=1):
+    # Inizializza l'immagine LBP
+    lbp = np.zeros_like(img)
+
+    # Calcola LBP
+    for i in range(R, img.shape[0]-R):
+        for j in range(R, img.shape[1]-R):
+            # Ottieni il pixel centrale e i suoi vicini
+            center = img[i, j]
+            neighbors = [img[i+int(R*np.sin(2*np.pi*p/P)), j+int(R*np.cos(2*np.pi*p/P))] for p in range(P)]
+            
+            # Calcola il LBP
+            lbp[i, j] = sum([2**p if neighbors[p] >= center else 0 for p in range(P)])
+
+    return lbp
 
 def feature_extraction_pca(img):
-	pca = PCA(n_components=2)
+	pca = PCA(n_components=6)
 	pca.fit(img)
 	pca_features = pca.transform(img)
 	return pca_features

@@ -49,7 +49,7 @@ def subject_euclidean_distance2(gallery_subject, probeimage, probe_path):
                 templates.append(galleryimage)
             except FileNotFoundError:
                 galleryimage = cv2.imread(img_path)
-                galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
+                galleryimage = IrisProcessing.getTemplate(galleryimage)#.flatten()
                 IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{L_or_R}/{img[:-4]}.npy')
                 templates.append(galleryimage)
     
@@ -60,7 +60,7 @@ def subject_euclidean_distance2(gallery_subject, probeimage, probe_path):
 
 def image_matching(path, test_subject, probe_path, gallery_subjects, threshold, process_pool):
     probeimage = cv2.imread(probe_path)
-    probeimage = IrisProcessing.getTemplate(probeimage).flatten()
+    probeimage = IrisProcessing.getTemplate(probeimage)#.flatten()
     args = []
     for gallery_subject in gallery_subjects:
         args.append([gallery_subject, probeimage, probe_path])
