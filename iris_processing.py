@@ -17,7 +17,7 @@ def getPupil(image, param1, param2, minDist, minRadius, maxRadius):
 	circles = np.uint16(np.around(getCircles(img, param1, param2, minDist, minRadius, maxRadius)))
 	max_radius = 0
 	max_center = (0,0)
-	print(len(circles))
+
 	for i in circles[0, :]:
 		centro = (i[0], i[1])
 		raggio = i[2]
@@ -80,7 +80,7 @@ def getTemplate(image):
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=90, blur=(15,15))
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 
-	iris_radius = int(pupil_radius + 45)	
+	iris_radius = int(pupil_radius + 40)	
 	iris_center = pupil_center
 
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
