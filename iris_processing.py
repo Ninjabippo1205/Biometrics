@@ -131,23 +131,6 @@ def calculate_lbp(img, P=8, R=1):
 
     return lbp
 
-def feature_extraction_pca(img):
-	pca = PCA(n_components=6)
-	pca.fit(img)
-	pca_features = pca.transform(img)
-	return pca_features
-
-def feature_extraction(img):
-	c = pywt.wavedec2(img, 'db2', mode='periodization', level=3)
-	c[0] /= np.abs(c[0]).max()
-	for detail_level in range(3):
-		c[detail_level + 1] = [d/np.abs(d).max() for d in c[detail_level + 1]]
-	#arr, slices = pywt.coeffs_to_array(c)
-	#plt.imshow(arr, cmap=plt.cm.gray)
-	#plt.show()
-	res = np.concatenate([np.ndarray.flatten(c1) for sublist in c for c1 in sublist])
-	return res
-
 def process(img, filters):
 	accum = np.zeros_like(img)
 	for kern, params in filters:
