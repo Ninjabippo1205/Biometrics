@@ -128,29 +128,7 @@ def calculate_lbp(img, P=8, R=1):
             
             # Calcola il LBP
             lbp[i, j] = sum([2**p if neighbors[p] >= center else 0 for p in range(P)])
-
     return lbp
-
-def process(img, filters):
-	accum = np.zeros_like(img)
-	for kern, params in filters:
-		fimg = cv2.filter2D(img, cv2.CV_8UC3, kern)
-		np.maximum(accum, fimg, accum)
-	return accum
-
-def binarize(img, threshold=128):
-	return (img > threshold).astype(np.uint8)
-
-def build_filters():
-	filters = []
-	ksize = 31
-	for theta in np.arange(0, np.pi, np.pi/16):
-		params = {'ksize' : (ksize, ksize), 'sigma' : 3.0, 'theta' : theta, 'lambd' : 10.0, 'gamma' : 0.2, 'psi' : 0, 'ktype' : cv2.CV_32F}
-		kern = cv2.getGaborKernel(**params)
-		kern /= 1.5 * kern.sum()
-		filters.append((kern, params))
-
-	return filters
 
 # Processed image save functions
 def saveDataset(dataset, images_folder):
@@ -173,3 +151,45 @@ def saveTemplate(template, path):
 	if not os.path.exists(f'{items[0]}/{items[1]}/{items[2]}'): os.mkdir(f'{items[0]}/{items[1]}/{items[2]}')
 
 	np.save(path, template)
+
+## Tested and unused features ##
+# Feature extraction with PCA
+
+# def feature_extraction_pca(img):
+# 	pca = PCA(n_components=6)
+# 	pca.fit(img)
+# 	pca_features = pca.transform(img)
+# 	return pca_features
+
+# Feature extraction with wavelength
+
+# def feature_extraction(img):
+# 	c = pywt.wavedec2(img, 'db2', mode='periodization', level=3)
+# 	c[0] /= np.abs(c[0]).max()
+# 	for detail_level in range(3):
+# 		c[detail_level + 1] = [d/np.abs(d).max() for d in c[detail_level + 1]]
+# 	#arr, slices = pywt.coeffs_to_array(c)
+# 	#plt.imshow(arr, cmap=plt.cm.gray)
+# 	#plt.show()
+# 	res = np.concatenate([np.ndarray.flatten(c1) for sublist in c for c1 in sublist])
+# 	return res
+
+# Feature extraction with Gabor
+
+# def process(img, filters):
+# 	accum = np.zeros_like(img)
+# 	for kern, params in filters:
+# 		fimg = cv2.filter2D(img, cv2.CV_8UC3, kern)
+# 		np.maximum(accum, fimg, accum)
+# 	return accum
+
+# def build_filters():
+# 	filters = []
+# 	ksize = 31
+# 	for theta in np.arange(0, np.pi, np.pi/16):
+# 		params = {'ksize' : (ksize, ksize), 'sigma' : 3.0, 'theta' : theta, 'lambd' : 10.0, 'gamma' : 0.2, 'psi' : 0, 'ktype' : cv2.CV_32F}
+# 		kern = cv2.getGaborKernel(**params)
+# 		kern /= 1.5 * kern.sum()
+# 		filters.append((kern, params))
+# 
+# 	return filters
