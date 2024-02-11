@@ -7,7 +7,7 @@ def main():
     if os.name == 'nt': os.chdir(current_folder[:current_folder.rfind('\\')])
     elif os.name == 'posix': os.chdir(current_folder[:current_folder.rfind('/')])
     else:
-        print("This program hasn't been tested in the current enviroment. Downtime may happen.")
+        print("This program hasn't been tested in the current enviroment. Downtime may occur.")
         _ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
         if _ != '': exit(-1)
         os.chdir(current_folder[:current_folder.rfind('/')])
