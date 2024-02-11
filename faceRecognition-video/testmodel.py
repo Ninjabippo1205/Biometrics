@@ -26,7 +26,7 @@ def main():
         print("names.json not found: have you trained the model?")
         exit(-1)
     
-    fp = open('name.json', 'r')
+    fp = open('names.json', 'r')
     names = json.load(fp)
     fp.close()
 
@@ -45,7 +45,7 @@ def main():
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
                 cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
                 cv2.rectangle(frame, (x,y-40), (x+w,y), (255,0,0), -1)
-                cv2.putText(frame, names[serial], (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+                cv2.putText(frame, names[str(serial)], (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
             else:
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
                 cv2.rectangle(frame,(x,y),(x+w,y+h),(50,50,255),2)
