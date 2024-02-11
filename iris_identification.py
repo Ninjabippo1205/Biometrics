@@ -1,54 +1,45 @@
-import cv2, numpy as np
+import cv2, os, numpy as np
 from scipy.spatial import distance as scipydistance
 
 import iris_processing as IrisProcessing
 
-def subject_euclidean_distance(gallery, gallery_subject, probeimage, path, image_path):
-    distances = []
+def subject_euclidean_distance(path, gallery_subject, probeimage, probe_path):
+    sum = 0; inc = 0
 
-    for i in range(len(gallery[gallery_subject])):
-        test_path = gallery[gallery_subject][i]
-        if(image_path == test_path): continue
+    images = []
+    if os.path.exists(f"{path}/{gallery_subject}/L"):
+        images += ["L/" + img for img in os.listdir(f"{path}/{gallery_subject}/L")]
+    if os.path.exists(f"{path}/{gallery_subject}/R"):
+        images += ["R/" + img for img in os.listdir(f"{path}/{gallery_subject}/R")]
+    
+    for img in images:
+        img_path = f"{path}/{gallery_subject}/{img}"
 
-        try:
-            galleryimage = np.load(f'template/{gallery_subject}/{test_path[:-4]}.npy')
-        except FileNotFoundError:
-            galleryimage = cv2.imread(f'{path}/{gallery_subject}/{test_path}')
-            galleryimage = IrisProcessing.getTemplate(galleryimage).flatten()
-            IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{test_path[:-4]}.npy')
+        if img_path == probe_path:
+            inc = 1
+            continue
 
+        if os.path.exists(f'template/{gallery_subject}/{img[:-4]}.npy'):
+            galleryimage = np.load(f'template/{gallery_subject}/{img[:-4]}.npy')
+        else:
+            galleryimage = cv2.imread(img_path)
+            galleryimage = IrisProcessing.getTemplate(galleryimage)
+            IrisProcessing.saveTemplate(galleryimage, f'template/{gallery_subject}/{img[:-4]}.npy')
 
-        distances.append(scipydistance.euclidean(probeimage, galleryimage))
+        sum += scipydistance.euclidean(probeimage, galleryimage)
+        
+    return [gallery_subject, sum/(len(images) - inc)]  # Return distances instead of putting it in a queue
 
-    return distances  # Return distances instead of putting it in a queue
-
-def image_matching(path, test_subject, probe, gallery, gallery_subjects, threshold, process_pool):
-    minDistance = float("inf")
-    matched = ''
-    matched_list = {}
-
-    # Getting template for probe.
-    probeimage = cv2.imread(f"{path}/{test_subject}/{probe}")
-    probeimage = IrisProcessing.getTemplate(probeimage).flatten()
-
-    # Creating args
+def image_matching(path, probe_path, gallery_subjects, threshold, process_pool):
+    probeimage = cv2.imread(probe_path)
+    probeimage = IrisProcessing.getTemplate(probeimage)
+    
     args = []
     for gallery_subject in gallery_subjects:
-        args.append([gallery, gallery_subject, probeimage, path, probe])
+        args.append([path, gallery_subject, probeimage, probe_path])
 
-    # Mapping to pool
-    distances = process_pool.starmap(subject_euclidean_distance, args)
-    
-    # Finding minimum distance based on precalculated distances
-    for gallery_subject in range(len(distances)):
-        for dist in distances[gallery_subject]:
+    distances = process_pool.starmap(func=subject_euclidean_distance, iterable=args)
 
-            if(dist < minDistance):
-                minDistance = dist
-                matched = gallery_subjects[gallery_subject]
-
-            if(dist < threshold):
-                matched_list[gallery_subjects[gallery_subject]] = dist
-
-    matched_list = dict(sorted(matched_list.items(), key=lambda item: item[1]))    
-    return [matched, minDistance, matched_list]
+    sorted_distances = sorted(distances, key=lambda x: x[1])
+    matched_list = [sublist for sublist in sorted_distances if sublist[1] < threshold]
+    return matched_list
