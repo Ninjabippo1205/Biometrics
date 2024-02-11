@@ -1,7 +1,4 @@
 import cv2, os, numpy as np
-import pywt
-from matplotlib import pyplot as plt
-from sklearn.decomposition import PCA
 
 def getCircles(image, param1, param2, minDist, minRadius, maxRadius):
 	img = image.copy()
