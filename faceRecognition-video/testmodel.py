@@ -41,7 +41,7 @@ def main():
         faces = facedetect.detectMultiScale(gray_image, 1.3, 5)
         for (x,y,w,h) in faces:
             serial, conf = recognizer.predict(gray_image[y:y+h, x:x+w])
-            if conf>60:
+            if conf>75:
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
                 cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
                 cv2.rectangle(frame, (x,y-40), (x+w,y), (255,0,0), -1)
