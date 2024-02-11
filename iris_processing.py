@@ -77,7 +77,7 @@ def getTemplate(image):
 	preProcessed_image_for_pupil = preProcessing_pupil_image(frame, threshold_value=90, blur=(15,15))
 	pupil_center, pupil_radius = getPupil(preProcessed_image_for_pupil, param1=50, param2=400, minDist=0.5, minRadius=15, maxRadius=70)
 
-	iris_radius = int(pupil_radius + 40)	
+	iris_radius = int(pupil_radius + 45)	
 	iris_center = pupil_center
 
 	partial_iris = not_iris_mask(pupil_center, iris_center, pupil_radius, iris_radius, frame)
@@ -88,7 +88,6 @@ def getTemplate(image):
 	eyelid_mask_ = eyelid_and_eyelashes_mask_after_normalization(normalized_iris)
 	final_iris = cv2.bitwise_and(normalized_iris, normalized_iris, mask=eyelid_mask_)
 	final_iris = enhance_img(final_iris)
-	cv2.imshow('final_iris', final_iris)
 
 	#lbp =  calculate_lbp(final_iris)
 	hist = calculate_histograms(final_iris)
