@@ -41,11 +41,11 @@ def main():
         faces = facedetect.detectMultiScale(gray_image, 1.3, 5)
         for (x,y,w,h) in faces:
             serial, conf = recognizer.predict(gray_image[y:y+h, x:x+w])
-            if conf>75:
+            if conf<60:
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
                 cv2.rectangle(frame, (x,y), (x+w,y+h), (255,0,0), 2)
                 cv2.rectangle(frame, (x,y-40), (x+w,y), (255,0,0), -1)
-                cv2.putText(frame, names[str(serial)], (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+                cv2.putText(frame, f'{names[str(serial)]} - {int(conf)}', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
             else:
                 cv2.rectangle(frame, (x,y), (x+w, y+h), (0,0,255), 1)
                 cv2.rectangle(frame,(x,y),(x+w,y+h),(50,50,255),2)

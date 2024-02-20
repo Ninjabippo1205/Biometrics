@@ -19,7 +19,7 @@ def main():
 		epilog="Warning! Choosing an already used ID will overwrite over the already enrolled subject"
 	)
     
-    parser.add_argument('-ic', '--image-count', dest="image_count", type=int, default=500, help="Amount of images taken for each subject. Default is 500")
+    parser.add_argument('-ic', '--image-count', dest="image_count", type=int, default=200, help="Amount of images taken for each subject. Default is 500")
     arguments = parser.parse_args()
 
     # Requirements
@@ -32,7 +32,7 @@ def main():
         exit(-1)
     
     if arguments.image_count > 1000:
-        print(f"You have chosen to take {parser.image_count} images for each subject. Such a large number could cause slow downs!")
+        print(f"You have chosen to take {arguments.image_count} images for each subject. Such a large number could cause slow downs!")
         _ = input('Please hit enter if you\'d like to continue, \'q\' otherwise: ')
         if _ != '': exit(-1)
 
@@ -40,14 +40,14 @@ def main():
     facedetect = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
     id = input("Enter Your ID: ")
     name = input("Enter Your Name: ")
-
+    count = 0
     for _ in range(arguments.image_count):
         ret, frame = video.read()
         gray_iamge = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = facedetect.detectMultiScale(gray_iamge, 1.3, 5)
         for (x,y,w,h) in faces:
             count += 1
-            cv2.imwrite(f'faceRecognition/datasets/User.{id}.{count}.{name}.jpg', gray_iamge[y:y+h, x:x+w])
+            cv2.imwrite(f'datasets/User.{id}.{count}.{name}.jpg', gray_iamge[y:y+h, x:x+w])
             cv2.rectangle(frame, (x,y), (x+w, y+h), (50,50,255), 1)
         
         cv2.imshow("Saved frame", frame)
